@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: corporate-lms
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/lms_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
+    hikari:
+      maximum-pool-size: 20
+      connection-timeout: 5000
+  flyway:
+    enabled: true
+    # Allows a safe Spring Boot cutover when the schema was created by the legacy app.
+    # Fresh databases still run V1 normally; existing schemas are recorded as baseline V1.
+    baseline-on-migrate: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+app:
+  # Set to false in production. It only inserts data into an empty database.
+  demo-data: ${DEMO_DATA:true}
+  jwt:
+    # Supply JWT_SECRET as a Base64 value in non-development environments.
+    secret: ${JWT_SECRET:VGhpcy1pcy1hLWRldmVsb3BtZW50LW9ubHktc2VjcmV0LWNoYW5nZS1tZQ==}
+    expiration: ${JWT_EXPIRATION:604800000}

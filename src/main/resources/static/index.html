@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corporate Employee Training & Compliance LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar"></nav>
+
+  <header class="hero">
+    <div class="container">
+      <div style="display: inline-block; background: rgba(255, 255, 255, 0.1); padding: 4px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; margin-bottom: 16px;">
+        🏢 Corporate Learning & Compliance Portal
+      </div>
+      <h1>Continuous Learning & Workplace Excellence</h1>
+      <p>Upskill your professional capabilities, satisfy mandatory security and ethics compliance requirements, and track your career growth milestones.</p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="/login.html" class="btn btn-primary btn-lg">Access Employee Portal</a>
+        <a href="/courses.html" class="btn btn-secondary btn-lg" style="color: #0f172a;">Explore Training Catalog</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="margin-bottom: 60px;">
+    <!-- Key Company Pillars -->
+    <div class="grid grid-3" style="margin-bottom: 40px;">
+      <div class="card">
+        <div style="font-size: 1.8rem; margin-bottom: 10px;">🔒</div>
+        <h3 style="margin-bottom: 8px;">Mandatory Compliance</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          Annual cyber defense, data privacy, and workplace ethics training with verifiable completion records and deadlines.
+        </p>
+      </div>
+
+      <div class="card">
+        <div style="font-size: 1.8rem; margin-bottom: 10px;">🚀</div>
+        <h3 style="margin-bottom: 8px;">Technical & Leadership Paths</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          Self-paced elective modules on modern architectures, cloud tools, communication, and team leadership.
+        </p>
+      </div>
+
+      <div class="card">
+        <div style="font-size: 1.8rem; margin-bottom: 10px;">📜</div>
+        <h3 style="margin-bottom: 8px;">Internal Certifications</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          Earn official company-recognized certificates upon demonstrating subject mastery through interactive knowledge checks.
+        </p>
+      </div>
+    </div>
+
+    <!-- Featured Mandatory Training Section -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+      <div>
+        <h2 style="font-size: 1.6rem; color: var(--secondary);">Featured Training Programs</h2>
+        <p style="color: var(--text-muted);">High-priority courses designed for team capability and compliance.</p>
+      </div>
+      <a href="/courses.html" class="btn btn-secondary btn-sm">View All Courses →</a>
+    </div>
+
+    <div id="featured-courses-grid" class="grid grid-3">
+      <div style="text-align: center; grid-column: 1 / -1; padding: 40px; color: var(--text-muted);">
+        Loading featured training programs...
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Corporate Learning & Development. Confidential & Internal Use Only.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/auth.js"></script>
+  <script type="module">
+    import { API } from '/js/api.js';
+
+    async function loadFeaturedCourses() {
+      const container = document.getElementById('featured-courses-grid');
+      try {
+        const res = await API.get('/courses');
+        const courses = res.courses.slice(0, 3);
+
+        if (courses.length === 0) {
+          container.innerHTML = '<p style="text-align: center; grid-column: 1 / -1;">No courses available at this time.</p>';
+          return;
+        }
+
+        container.innerHTML = courses.map(course => `
+          <div class="card" style="display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <span class="badge ${course.is_mandatory ? 'badge-mandatory' : 'badge-optional'}">
+                ${course.is_mandatory ? '⚠️ Mandatory Training' : 'Elective Course'}
+              </span>
+              <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${course.category}</span>
+            </div>
+            <h3 style="font-size: 1.15rem; margin-bottom: 8px;">${course.title}</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; flex: 1; margin-bottom: 16px;">
+              ${course.description}
+            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; font-size: 0.82rem; color: var(--text-muted);">
+              <span>⏱ ${course.estimated_duration_hours || 1.0} hrs</span>
+              <span>📚 ${course.total_lessons || 0} Lessons</span>
+            </div>
+            <div style="margin-top: 14px;">
+              <a href="/course-detail.html?id=${course.id}" class="btn btn-primary btn-block btn-sm">
+                View Curriculum & Start
+              </a>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--danger); text-align: center; grid-column: 1 / -1;">Failed to load courses: ${err.message}</p>`;
+      }
+    }
+
+    loadFeaturedCourses();
+  </script>
+</body>
+</html>

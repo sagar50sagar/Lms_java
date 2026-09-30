@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workplace Training Dashboard - Enterprise LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar"></nav>
+
+  <main class="container" style="margin-top: 32px; margin-bottom: 60px;">
+    <!-- Welcome Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <h1 id="welcome-heading" style="font-size: 1.85rem; color: var(--secondary);">Welcome back</h1>
+        <p id="welcome-subtext" style="color: var(--text-muted);">Workforce Learning and Professional Compliance Center</p>
+      </div>
+      <div id="role-quick-actions" style="display: flex; gap: 10px;"></div>
+    </div>
+
+    <!-- Overdue Alert (shown if employee has overdue training) -->
+    <div id="overdue-banner-container"></div>
+
+    <!-- Metrics Strip -->
+    <div id="metrics-grid" class="grid grid-4" style="margin-bottom: 32px;"></div>
+
+    <!-- Dynamic Section: Admin / Trainer / Employee View -->
+    <div id="role-specific-sections"></div>
+
+    <!-- Assigned Training Section (Learner view) -->
+    <div style="margin-bottom: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="font-size: 1.35rem; color: var(--secondary);">My Assigned Training & Compliance</h2>
+        <a id="catalog-link" href="/courses.html" class="btn btn-secondary btn-sm" style="display:none;">Browse Catalog</a>
+      </div>
+      <div id="assigned-courses-grid" class="grid grid-3">
+        <div style="padding: 30px; text-align: center; color: var(--text-muted); grid-column: 1 / -1;">
+          Loading your assigned training...
+        </div>
+      </div>
+    </div>
+
+    <!-- Earned Certificates Section -->
+    <div id="certificates-section" style="margin-bottom: 40px; display: none;">
+      <h2 style="font-size: 1.35rem; color: var(--secondary); margin-bottom: 16px;">My Certificates of Completion</h2>
+      <div id="certificates-grid" class="grid grid-3"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Corporate Learning & Development. Confidential & Internal Use Only.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/auth.js"></script>
+  <script type="module" src="/js/dashboard.js"></script>
+</body>
+</html>

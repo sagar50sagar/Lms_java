@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Classroom - Enterprise LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/player.css">
+</head>
+<body>
+  <!-- Player Top Bar -->
+  <header style="height: 64px; background: #ffffff; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 10;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <a href="/dashboard.html" class="btn btn-secondary btn-sm">← Exit to Dashboard</a>
+      <h2 id="player-course-title" style="font-size: 1.1rem; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 450px;">
+        Loading course...
+      </h2>
+    </div>
+
+    <!-- Progress indicator -->
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="min-width: 140px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 2px;">
+          <span>Progress</span>
+          <span id="player-progress-text">0%</span>
+        </div>
+        <div class="progress-bar-container" style="margin: 0; height: 6px;">
+          <div id="player-progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+      <div id="player-cert-badge"></div>
+    </div>
+  </header>
+
+  <!-- Player Layout -->
+  <div class="player-layout">
+    <!-- Syllabus Sidebar -->
+    <aside class="player-sidebar">
+      <div class="sidebar-header">
+        <h2>Course Syllabus</h2>
+        <span id="sidebar-lesson-count" style="font-size: 0.8rem; color: var(--text-muted);">0 lessons</span>
+      </div>
+
+      <div id="sidebar-curriculum" class="sidebar-content">
+        <!-- Rendered chapters and lessons -->
+      </div>
+    </aside>
+
+    <!-- Main Lesson Reader -->
+    <main class="player-main">
+      <div class="player-content-area">
+        <div class="lesson-header">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <span id="lesson-chapter-badge" class="badge" style="background: #f1f5f9; color: var(--text-muted);">Module</span>
+            <span id="lesson-duration-badge" class="badge badge-optional">⏱ 10 mins</span>
+          </div>
+          <h1 id="lesson-main-title">Loading Lesson...</h1>
+        </div>
+
+        <!-- Video Player (if video) -->
+        <div id="lesson-video-box" class="video-container" style="display: none;">
+          <iframe id="lesson-video-iframe" src="" allowfullscreen></iframe>
+        </div>
+
+        <!-- Text / HTML Content -->
+        <div id="lesson-main-body" class="lesson-body">
+          <p>Please select a lesson from the sidebar to begin.</p>
+        </div>
+      </div>
+
+      <!-- Player Navigation Footer -->
+      <footer class="player-footer">
+        <button id="btn-prev-lesson" class="btn btn-secondary btn-sm" disabled>
+          ← Previous
+        </button>
+
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <button id="btn-toggle-complete" class="btn btn-secondary btn-sm">
+            Mark Lesson Complete
+          </button>
+          <a id="btn-goto-quiz" href="#" class="btn btn-primary btn-sm" style="display: none;">
+            Take Knowledge Check Quiz 📝
+          </a>
+        </div>
+
+        <button id="btn-next-lesson" class="btn btn-primary btn-sm">
+          Next Lesson →
+        </button>
+      </footer>
+    </main>
+  </div>
+
+  <script type="module" src="/js/player.js"></script>
+</body>
+</html>

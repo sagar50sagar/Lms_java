@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Course Details - Enterprise LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar"></nav>
+
+  <main class="container" style="margin-top: 32px; margin-bottom: 60px;">
+    <div id="course-detail-container">
+      <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+        Loading course curriculum...
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Corporate Learning & Development. Confidential & Internal Use Only.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/auth.js"></script>
+  <script type="module">
+    import { API } from '/js/api.js';
+
+    async function loadCourseDetail() {
+      const container = document.getElementById('course-detail-container');
+      const urlParams = new URLSearchParams(window.location.search);
+      const courseId = urlParams.get('id');
+
+      if (!courseId) {
+        container.innerHTML = '<p class="alert alert-danger">No course ID specified in URL.</p>';
+        return;
+      }
+
+      try {
+        const res = await API.get(`/courses/${courseId}`);
+        const c = res.course;
+        const p = c.user_progress || {};
+
+        let actionButtonHtml = `
+          <button id="enroll-btn" class="btn btn-primary btn-lg">
+            Enroll & Start Training
+          </button>
+        `;
+
+        if (p.assignment) {
+          if (p.assignment.completed_at) {
+            actionButtonHtml = `
+              <div style="display: flex; gap: 10px;">
+                <a href="/course-player.html?id=${c.id}" class="btn btn-secondary btn-lg">Review Course</a>
+                ${p.certificate ? `<a href="/certificate-view.html?code=${p.certificate.certificate_code}" class="btn btn-primary btn-lg" target="_blank">View Certificate 📜</a>` : ''}
+              </div>
+            `;
+          } else {
+            actionButtonHtml = `
+              <a href="/course-player.html?id=${c.id}" class="btn btn-primary btn-lg">
+                ${p.percent > 0 ? `Resume Training (${p.percent}%)` : 'Start Learning'}
+              </a>
+            `;
+          }
+        }
+
+        container.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Header Card -->
+            <div class="card" style="padding: 32px;">
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <span class="badge ${c.is_mandatory ? 'badge-mandatory' : 'badge-optional'}">
+                  ${c.is_mandatory ? '⚠️ Mandatory Corporate Compliance' : 'Elective Course'}
+                </span>
+                <span class="badge" style="background: #f1f5f9; color: var(--text-muted);">${c.category}</span>
+              </div>
+              <h1 style="font-size: 2.2rem; color: var(--secondary); margin-bottom: 12px;">${c.title}</h1>
+              <p style="font-size: 1.05rem; color: var(--text-muted); max-width: 800px; margin-bottom: 20px;">
+                ${c.description}
+              </p>
+
+              <div style="display: flex; gap: 24px; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 24px; flex-wrap: wrap;">
+                <span>⏱ Duration: <strong>${c.estimated_duration_hours || 1.0} hrs</strong></span>
+                <span>📚 Total Lessons: <strong>${c.total_lessons || 0}</strong></span>
+                <span>🧑‍🏫 Instructor: <strong>${c.creator_name || 'Corporate Training Team'}</strong></span>
+                ${p.assignment && p.assignment.due_date ? `<span>📅 Target Deadline: <strong>${new Date(p.assignment.due_date).toLocaleDateString()}</strong></span>` : ''}
+              </div>
+
+              ${p.assignment ? `
+                <div style="margin-bottom: 24px; max-width: 400px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">
+                    <span>Course Progress</span>
+                    <span>${p.percent}%</span>
+                  </div>
+                  <div class="progress-bar-container">
+                    <div class="progress-bar-fill ${p.assignment.completed_at ? 'completed' : ''}" style="width: ${p.percent}%;"></div>
+                  </div>
+                </div>
+              ` : ''}
+
+              <div>
+                ${actionButtonHtml}
+              </div>
+            </div>
+
+            <!-- Syllabus / Chapters Breakdown -->
+            <div class="card">
+              <h2 style="font-size: 1.35rem; color: var(--secondary); margin-bottom: 16px;">Curriculum & Learning Modules</h2>
+              ${c.chapters.length === 0 ? '<p style="color: var(--text-muted);">Curriculum modules are being finalized for this course.</p>' : ''}
+
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                ${c.chapters.map((chapter, idx) => `
+                  <div style="border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
+                    <div style="background: #f8fafc; padding: 14px 18px; font-weight: 700; color: var(--secondary); display: flex; justify-content: space-between;">
+                      <span>${chapter.title}</span>
+                      <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">${chapter.lessons.length} lessons</span>
+                    </div>
+                    <div style="padding: 10px 18px;">
+                      ${chapter.lessons.map(lesson => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                          <div style="display: flex; align-items: center; gap: 10px;">
+                            <span>${lesson.content_type === 'video' ? '🎥' : '📄'}</span>
+                            <span style="font-size: 0.95rem;">${lesson.title}</span>
+                          </div>
+                          <div style="display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--text-muted);">
+                            <span>${lesson.duration_mins} mins</span>
+                            ${lesson.is_completed ? '<span style="color: var(--success); font-weight: 600;">✓ Completed</span>' : ''}
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Knowledge Check / Quiz Notification -->
+              ${c.quizzes && c.quizzes.length > 0 ? `
+                <div style="margin-top: 24px; padding: 16px; background: var(--info-bg); border-radius: var(--radius); border: 1px solid #bae6fd;">
+                  <h4 style="color: #0369a1; margin-bottom: 4px;">📝 Knowledge Check Required for Certificate</h4>
+                  <p style="color: #0284c7; font-size: 0.88rem;">
+                    Pass the final assessment quiz with at least <strong>${c.quizzes[0].passing_score}%</strong> to receive your verified company Certificate of Completion.
+                  </p>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+
+        const enrollBtn = document.getElementById('enroll-btn');
+        if (enrollBtn) {
+          enrollBtn.addEventListener('click', async () => {
+            const user = API.getUser();
+            if (!user) {
+              window.location.href = `/login.html?redirect=${encodeURIComponent(window.location.href)}`;
+              return;
+            }
+            try {
+              await API.post('/assignments/self-enroll', { course_id: c.id });
+              API.showToast('Successfully enrolled in training!', 'success');
+              window.location.href = `/course-player.html?id=${c.id}`;
+            } catch (err) {
+              API.showToast(err.message, 'error');
+            }
+          });
+        }
+      } catch (err) {
+        container.innerHTML = `<p class="alert alert-danger">Failed to load course: ${err.message}</p>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadCourseDetail);
+  </script>
+</body>
+</html>

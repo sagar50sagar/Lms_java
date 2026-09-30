@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In - Corporate Training LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body style="background: #f1f5f9; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; padding: 20px;">
+
+  <div style="text-align: center; margin-bottom: 24px;">
+    <a href="/index.html" class="nav-brand" style="justify-content: center; margin-bottom: 8px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>
+      <span>Enterprise LMS</span>
+    </a>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">Internal Workforce Training & Compliance System</p>
+  </div>
+
+  <div class="card" style="width: 100%; max-width: 440px; padding: 32px;">
+    <div style="display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px;">
+      <button id="tab-login" class="btn" style="flex: 1; border-radius: 0; border-bottom: 2px solid var(--primary); color: var(--primary); background: none;">Sign In</button>
+      <button id="tab-register" class="btn" style="flex: 1; border-radius: 0; border-bottom: 2px solid transparent; color: var(--text-muted); background: none;">New Account</button>
+    </div>
+
+    <!-- Error/Notice Alert -->
+    <div id="auth-alert" class="alert alert-danger" style="display: none;"></div>
+
+    <!-- Sign In Form -->
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="login-email">Corporate Email</label>
+        <input type="email" id="login-email" class="form-control" placeholder="user@company.local" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="login-password">Password</label>
+        <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 20px;">
+        Sign In to Portal
+      </button>
+    </form>
+
+    <!-- Registration Form (Hidden by default) -->
+    <form id="register-form" style="display: none;">
+      <div class="form-group">
+        <label class="form-label" for="reg-name">Full Name</label>
+        <input type="text" id="reg-name" class="form-control" placeholder="e.g. John Doe" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reg-email">Corporate Email</label>
+        <input type="email" id="reg-email" class="form-control" placeholder="j.doe@company.local" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reg-password">Password</label>
+        <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reg-role">Role</label>
+        <select id="reg-role" class="form-control" required>
+          <option value="employee" selected>Employee (Learner)</option>
+          <option value="trainer">Trainer (Course Creator)</option>
+          <option value="admin">Admin (HR / Compliance)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reg-designation">Designation / Job Title</label>
+        <input type="text" id="reg-designation" class="form-control" placeholder="e.g. Associate Engineer">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 20px;">
+        Create Account & Sign In
+      </button>
+    </form>
+
+    <!-- Quick-fill demo credentials for easy testing -->
+    <div style="margin-top: 28px; border-top: 1px dashed var(--border); padding-top: 20px;">
+      <p style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; text-align: center;">
+        Quick-Fill Demo Accounts
+      </p>
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button type="button" class="btn btn-secondary btn-sm demo-fill" data-email="admin@company.local" data-pass="admin123">
+          👑 Admin
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm demo-fill" data-email="trainer@company.local" data-pass="trainer123">
+          🧑‍🏫 Trainer
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm demo-fill" data-email="employee@company.local" data-pass="employee123">
+          💼 Employee
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { API } from '/js/api.js';
+
+    // Tabs toggle
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const authAlert = document.getElementById('auth-alert');
+
+    function showAlert(msg, isSuccess = false) {
+      authAlert.style.display = 'block';
+      authAlert.className = isSuccess ? 'alert alert-success' : 'alert alert-danger';
+      authAlert.textContent = msg;
+    }
+
+    tabLogin.addEventListener('click', () => {
+      tabLogin.style.borderBottomColor = 'var(--primary)';
+      tabLogin.style.color = 'var(--primary)';
+      tabRegister.style.borderBottomColor = 'transparent';
+      tabRegister.style.color = 'var(--text-muted)';
+      loginForm.style.display = 'block';
+      registerForm.style.display = 'none';
+      authAlert.style.display = 'none';
+    });
+
+    tabRegister.addEventListener('click', () => {
+      tabRegister.style.borderBottomColor = 'var(--primary)';
+      tabRegister.style.color = 'var(--primary)';
+      tabLogin.style.borderBottomColor = 'transparent';
+      tabLogin.style.color = 'var(--text-muted)';
+      loginForm.style.display = 'none';
+      registerForm.style.display = 'block';
+      authAlert.style.display = 'none';
+    });
+
+    // Quick demo autofill buttons
+    document.querySelectorAll('.demo-fill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabLogin.click();
+        document.getElementById('login-email').value = btn.dataset.email;
+        document.getElementById('login-password').value = btn.dataset.pass;
+      });
+    });
+
+    // Handle Login
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      authAlert.style.display = 'none';
+
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      try {
+        const res = await API.post('/auth/login', { email, password });
+        API.setSession(res.token, res.user);
+
+        // Redirect based on query param or default to dashboard
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirect = urlParams.get('redirect') || '/dashboard.html';
+        window.location.href = redirect;
+      } catch (err) {
+        showAlert(err.message || 'Authentication failed.');
+      }
+    });
+
+    // Handle Register
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      authAlert.style.display = 'none';
+
+      const full_name = document.getElementById('reg-name').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      const role = document.getElementById('reg-role').value;
+      const designation = document.getElementById('reg-designation').value;
+
+      try {
+        const res = await API.post('/auth/register', { full_name, email, password, role, designation });
+        API.setSession(res.token, res.user);
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        showAlert(err.message || 'Registration failed.');
+      }
+    });
+  </script>
+</body>
+</html>

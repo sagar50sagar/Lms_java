@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Check Assessment - Enterprise LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/player.css">
+</head>
+<body>
+  <nav class="navbar"></nav>
+
+  <main class="quiz-container">
+    <div style="margin-bottom: 24px;">
+      <a id="back-to-course-link" href="/dashboard.html" class="btn btn-secondary btn-sm">← Back to Course</a>
+    </div>
+
+    <!-- Quiz Header Card -->
+    <div class="card" style="margin-bottom: 28px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <span class="badge" style="background: #e0f2fe; color: #0369a1; margin-bottom: 8px;">Compliance Examination</span>
+          <h1 id="quiz-title" style="font-size: 1.6rem; color: var(--secondary);">Assessment</h1>
+          <p id="quiz-passing-info" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+            Passing threshold: 75%
+          </p>
+        </div>
+        <div id="quiz-timer-box" style="padding: 8px 16px; background: #f8fafc; border-radius: var(--radius); border: 1px solid var(--border); font-weight: 700; color: var(--secondary);">
+          ⏱ Exam Mode
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Card (Hidden until submitted) -->
+    <div id="quiz-results-card" class="card" style="display: none; margin-bottom: 28px;">
+      <div id="quiz-results-content"></div>
+    </div>
+
+    <!-- Question Form -->
+    <form id="quiz-form">
+      <div id="questions-container">
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+          Loading assessment questions...
+        </div>
+      </div>
+
+      <div id="quiz-submit-box" style="margin-top: 32px; display: none;">
+        <button type="submit" class="btn btn-primary btn-lg btn-block">
+          Submit Assessment Answers
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <script type="module" src="/js/auth.js"></script>
+  <script type="module" src="/js/quiz.js"></script>
+</body>
+</html>

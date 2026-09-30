@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Catalog - Enterprise LMS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar"></nav>
+
+  <main class="container" style="margin-top: 32px; margin-bottom: 60px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <h1 style="font-size: 1.85rem; color: var(--secondary);">Workforce Training Catalog</h1>
+        <p style="color: var(--text-muted);">Explore company compliance programs and professional upskilling tracks.</p>
+      </div>
+
+      <div style="display: flex; gap: 10px; width: 100%; max-width: 400px;">
+        <input type="text" id="course-search-input" class="form-control" placeholder="Search training courses...">
+      </div>
+    </div>
+
+    <!-- Category Filters -->
+    <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 24px;">
+      <button class="btn btn-primary btn-sm filter-btn" data-category="">All Categories</button>
+      <button class="btn btn-secondary btn-sm filter-btn" data-category="Compliance">🔒 Compliance</button>
+      <button class="btn btn-secondary btn-sm filter-btn" data-category="Technical">💻 Technical</button>
+      <button class="btn btn-secondary btn-sm filter-btn" data-category="Soft Skills">🤝 Soft Skills</button>
+      <button class="btn btn-secondary btn-sm filter-btn" data-category="Onboarding">🌱 Onboarding</button>
+    </div>
+
+    <!-- Course Grid -->
+    <div id="course-catalog-grid" class="grid grid-3">
+      <div style="padding: 40px; text-align: center; color: var(--text-muted); grid-column: 1 / -1;">
+        Loading catalog...
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Corporate Learning & Development. Confidential & Internal Use Only.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/auth.js"></script>
+  <script type="module" src="/js/courses.js"></script>
+</body>
+</html>

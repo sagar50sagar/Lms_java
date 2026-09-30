@@ -1,0 +1,256 @@
+/* Training Classroom & Course Player Layout */
+.player-layout {
+  display: flex;
+  height: calc(100vh - 68px);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.player-sidebar {
+  width: 360px;
+  border-right: 1px solid var(--border);
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.sidebar-header h2 {
+  font-size: 1.1rem;
+  color: var(--secondary);
+  margin-bottom: 6px;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.chapter-group {
+  margin-bottom: 16px;
+}
+
+.chapter-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+}
+
+.lesson-list {
+  list-style: none;
+}
+
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  transition: all 0.15s;
+  margin-bottom: 4px;
+}
+
+.lesson-item:hover {
+  background: #e2e8f0;
+}
+
+.lesson-item.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.lesson-status-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.lesson-status-icon.completed {
+  border-color: var(--success);
+  background: var(--success);
+  color: #ffffff;
+}
+
+.player-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.player-content-area {
+  flex: 1;
+  padding: 40px;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.lesson-header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+
+.lesson-header h1 {
+  font-size: 1.8rem;
+  color: var(--secondary);
+  margin-bottom: 8px;
+}
+
+.lesson-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.lesson-body {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #334155;
+  margin-bottom: 40px;
+}
+
+.lesson-body h2, .lesson-body h3 {
+  color: var(--secondary);
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.lesson-body p {
+  margin-bottom: 16px;
+}
+
+.lesson-body ul, .lesson-body ol {
+  margin-left: 24px;
+  margin-bottom: 20px;
+}
+
+.lesson-body li {
+  margin-bottom: 8px;
+}
+
+.video-container {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  margin-bottom: 30px;
+  background: #000000;
+  box-shadow: var(--shadow);
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.player-footer {
+  border-top: 1px solid var(--border);
+  padding: 20px 40px;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+}
+
+/* Quiz Taker Styling */
+.quiz-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.quiz-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
+}
+
+.question-block {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.question-text {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--secondary);
+  margin-bottom: 16px;
+}
+
+.options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.option-label:hover {
+  background: #f8fafc;
+  border-color: var(--border-focus);
+}
+
+.option-label.selected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+@media (max-width: 900px) {
+  .player-layout {
+    flex-direction: column;
+    height: auto;
+  }
+  .player-sidebar {
+    width: 100%;
+    height: 300px;
+  }
+  .player-content-area {
+    padding: 20px;
+  }
+}

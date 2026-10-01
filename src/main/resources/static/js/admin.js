@@ -287,11 +287,20 @@ async function loadCourses() {
             <td>${c.category}</td>
             <td>${c.estimated_duration_hours||1} hrs</td>
             <td><span style="color:${c.is_published?'var(--success)':'var(--text-muted)'};font-weight:600;font-size:0.85rem;">${c.is_published?'✅ Published':'⬜ Draft'}</span></td>
-            <td style="display:flex;gap:6px;flex-wrap:wrap;"><a href="/manage-course.html?id=${c.id}" class="btn btn-secondary btn-sm">✏️ Edit</a><a href="/course-detail.html?id=${c.id}" class="btn btn-secondary btn-sm">👁 View</a></td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap;"><a href="/manage-course.html?id=${c.id}" class="btn btn-secondary btn-sm">✏️ Edit</a><a href="/course-detail.html?id=${c.id}" class="btn btn-secondary btn-sm">👁 View</a><button class="btn btn-secondary btn-sm delete-course-btn" data-id="${c.id}" data-title="${c.title}" style="color:var(--danger);">Delete</button></td>
           </tr>
         `).join('')}</tbody>
       </table></div>
     `;
+    document.querySelectorAll('.delete-course-btn').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm(`Delete “${btn.dataset.title}”? This permanently removes its lessons, assignments, progress, quizzes, and certificates.`)) return;
+      try {
+        await API.delete(`/courses/${btn.dataset.id}`);
+        API.showToast('Course deleted.', 'success');
+        loadCourses();
+        loadComplianceMetrics();
+      } catch (err) { API.showToast(err.message, 'error'); }
+    }));
   } catch (err) { console.error('Courses error:', err); }
 }
 
@@ -315,7 +324,6 @@ async function handleCreateUser(e) {
   const body = {
     full_name: document.getElementById('new-user-name').value.trim(),
     email: document.getElementById('new-user-email').value.trim(),
-    password: document.getElementById('new-user-password').value,
     role: document.getElementById('new-user-role').value,
     department_id: document.getElementById('new-user-dept').value || null,
     designation: document.getElementById('new-user-designation').value.trim() || null,

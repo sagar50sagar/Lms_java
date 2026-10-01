@@ -1,187 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In - Corporate Training LMS</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body style="background: #f1f5f9; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; padding: 20px;">
-
-  <div style="text-align: center; margin-bottom: 24px;">
-    <a href="/index.html" class="nav-brand" style="justify-content: center; margin-bottom: 8px;">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>
-      <span>Enterprise LMS</span>
-    </a>
-    <p style="color: var(--text-muted); font-size: 0.9rem;">Internal Workforce Training & Compliance System</p>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sign In - Corporate Training LMS</title><link rel="stylesheet" href="/css/style.css"></head>
+<body style="background:#f1f5f9;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:20px;">
+  <div style="text-align:center;margin-bottom:24px;"><a href="/index.html" class="nav-brand" style="justify-content:center;margin-bottom:8px;"><span>Enterprise LMS</span></a><p style="color:var(--text-muted);font-size:.9rem;">Internal Workforce Training &amp; Compliance System</p></div>
+  <div class="card" style="width:100%;max-width:440px;padding:32px;">
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:24px;"><button id="tab-otp" class="btn" style="flex:1;border-radius:0;border-bottom:2px solid var(--primary);color:var(--primary);background:none;">Email Code</button><button id="tab-password" class="btn" style="flex:1;border-radius:0;border-bottom:2px solid transparent;color:var(--text-muted);background:none;">Password</button></div>
+    <div id="auth-alert" class="alert alert-danger" style="display:none;"></div>
+    <form id="otp-form"><div class="form-group"><label class="form-label" for="otp-email">Corporate Email</label><input type="email" id="otp-email" class="form-control" placeholder="user@company.local" required></div><div id="code-group" class="form-group" style="display:none;"><label class="form-label" for="otp-code">Verification Code</label><input inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="otp-code" class="form-control" placeholder="6-digit code"></div><button id="otp-submit" type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:20px;">Email Me a Sign-in Code</button></form>
+    <form id="password-form" style="display:none;"><div class="form-group"><label class="form-label" for="login-email">Corporate Email</label><input type="email" id="login-email" class="form-control" required></div><div class="form-group"><label class="form-label" for="login-password">Password</label><input type="password" id="login-password" class="form-control" required></div><button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:20px;">Sign In to Portal</button></form>
+    <div style="margin-top:20px;text-align:center;"><button id="show-reset" type="button" class="btn btn-secondary btn-sm">Set or reset password</button></div>
+    <form id="reset-form" style="display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:20px;"><p style="font-size:.9rem;color:var(--text-muted);margin-bottom:14px;">New users: choose Password setup and use the code in your invitation. Existing users can request a reset code.</p><div class="form-group"><label class="form-label" for="reset-purpose">Action</label><select id="reset-purpose" class="form-control"><option value="password_setup">Password setup</option><option value="password_reset">Password reset</option></select></div><div class="form-group"><label class="form-label" for="reset-email">Corporate Email</label><input type="email" id="reset-email" class="form-control" required></div><div class="form-group"><label class="form-label" for="reset-code">Setup / reset code</label><input inputmode="numeric" maxlength="6" id="reset-code" class="form-control" required></div><div class="form-group"><label class="form-label" for="reset-password">New password</label><input type="password" minlength="8" id="reset-password" class="form-control" required></div><button id="reset-request" type="button" class="btn btn-secondary btn-block">Email a reset code</button><button type="submit" class="btn btn-primary btn-block" style="margin-top:10px;">Save Password</button></form>
   </div>
-
-  <div class="card" style="width: 100%; max-width: 440px; padding: 32px;">
-    <div style="display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px;">
-      <button id="tab-login" class="btn" style="flex: 1; border-radius: 0; border-bottom: 2px solid var(--primary); color: var(--primary); background: none;">Sign In</button>
-      <button id="tab-register" class="btn" style="flex: 1; border-radius: 0; border-bottom: 2px solid transparent; color: var(--text-muted); background: none;">New Account</button>
-    </div>
-
-    <!-- Error/Notice Alert -->
-    <div id="auth-alert" class="alert alert-danger" style="display: none;"></div>
-
-    <!-- Sign In Form -->
-    <form id="login-form">
-      <div class="form-group">
-        <label class="form-label" for="login-email">Corporate Email</label>
-        <input type="email" id="login-email" class="form-control" placeholder="user@company.local" required>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="login-password">Password</label>
-        <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
-      </div>
-
-      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 20px;">
-        Sign In to Portal
-      </button>
-    </form>
-
-    <!-- Registration Form (Hidden by default) -->
-    <form id="register-form" style="display: none;">
-      <div class="form-group">
-        <label class="form-label" for="reg-name">Full Name</label>
-        <input type="text" id="reg-name" class="form-control" placeholder="e.g. John Doe" required>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg-email">Corporate Email</label>
-        <input type="email" id="reg-email" class="form-control" placeholder="j.doe@company.local" required>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg-password">Password</label>
-        <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters" required>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg-role">Role</label>
-        <select id="reg-role" class="form-control" required>
-          <option value="employee" selected>Employee (Learner)</option>
-          <option value="trainer">Trainer (Course Creator)</option>
-          <option value="admin">Admin (HR / Compliance)</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg-designation">Designation / Job Title</label>
-        <input type="text" id="reg-designation" class="form-control" placeholder="e.g. Associate Engineer">
-      </div>
-
-      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 20px;">
-        Create Account & Sign In
-      </button>
-    </form>
-
-    <!-- Quick-fill demo credentials for easy testing -->
-    <div style="margin-top: 28px; border-top: 1px dashed var(--border); padding-top: 20px;">
-      <p style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; text-align: center;">
-        Quick-Fill Demo Accounts
-      </p>
-      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-        <button type="button" class="btn btn-secondary btn-sm demo-fill" data-email="admin@company.local" data-pass="admin123">
-          👑 Admin
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm demo-fill" data-email="trainer@company.local" data-pass="trainer123">
-          🧑‍🏫 Trainer
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm demo-fill" data-email="employee@company.local" data-pass="employee123">
-          💼 Employee
-        </button>
-      </div>
-    </div>
-  </div>
-
   <script type="module">
     import { API } from '/js/api.js';
-
-    // Tabs toggle
-    const tabLogin = document.getElementById('tab-login');
-    const tabRegister = document.getElementById('tab-register');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    const authAlert = document.getElementById('auth-alert');
-
-    function showAlert(msg, isSuccess = false) {
-      authAlert.style.display = 'block';
-      authAlert.className = isSuccess ? 'alert alert-success' : 'alert alert-danger';
-      authAlert.textContent = msg;
-    }
-
-    tabLogin.addEventListener('click', () => {
-      tabLogin.style.borderBottomColor = 'var(--primary)';
-      tabLogin.style.color = 'var(--primary)';
-      tabRegister.style.borderBottomColor = 'transparent';
-      tabRegister.style.color = 'var(--text-muted)';
-      loginForm.style.display = 'block';
-      registerForm.style.display = 'none';
-      authAlert.style.display = 'none';
-    });
-
-    tabRegister.addEventListener('click', () => {
-      tabRegister.style.borderBottomColor = 'var(--primary)';
-      tabRegister.style.color = 'var(--primary)';
-      tabLogin.style.borderBottomColor = 'transparent';
-      tabLogin.style.color = 'var(--text-muted)';
-      loginForm.style.display = 'none';
-      registerForm.style.display = 'block';
-      authAlert.style.display = 'none';
-    });
-
-    // Quick demo autofill buttons
-    document.querySelectorAll('.demo-fill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabLogin.click();
-        document.getElementById('login-email').value = btn.dataset.email;
-        document.getElementById('login-password').value = btn.dataset.pass;
-      });
-    });
-
-    // Handle Login
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      authAlert.style.display = 'none';
-
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-
-      try {
-        const res = await API.post('/auth/login', { email, password });
-        API.setSession(res.token, res.user);
-
-        // Redirect based on query param or default to dashboard
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirect = urlParams.get('redirect') || '/dashboard.html';
-        window.location.href = redirect;
-      } catch (err) {
-        showAlert(err.message || 'Authentication failed.');
-      }
-    });
-
-    // Handle Register
-    registerForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      authAlert.style.display = 'none';
-
-      const full_name = document.getElementById('reg-name').value;
-      const email = document.getElementById('reg-email').value;
-      const password = document.getElementById('reg-password').value;
-      const role = document.getElementById('reg-role').value;
-      const designation = document.getElementById('reg-designation').value;
-
-      try {
-        const res = await API.post('/auth/register', { full_name, email, password, role, designation });
-        API.setSession(res.token, res.user);
-        window.location.href = '/dashboard.html';
-      } catch (err) {
-        showAlert(err.message || 'Registration failed.');
-      }
-    });
+    const alertEl=document.getElementById('auth-alert'); let otpSent=false;
+    function showAlert(message,success=false){alertEl.style.display='block';alertEl.className=success?'alert alert-success':'alert alert-danger';alertEl.textContent=message;}
+    function switchTab(tab){const otp=tab==='otp';document.getElementById('otp-form').style.display=otp?'block':'none';document.getElementById('password-form').style.display=otp?'none':'block';document.getElementById('tab-otp').style.borderBottomColor=otp?'var(--primary)':'transparent';document.getElementById('tab-otp').style.color=otp?'var(--primary)':'var(--text-muted)';document.getElementById('tab-password').style.borderBottomColor=otp?'transparent':'var(--primary)';document.getElementById('tab-password').style.color=otp?'var(--text-muted)':'var(--primary)';alertEl.style.display='none';}
+    document.getElementById('tab-otp').onclick=()=>switchTab('otp'); document.getElementById('tab-password').onclick=()=>switchTab('password');
+    function redirect(){window.location.href=new URLSearchParams(location.search).get('redirect')||'/dashboard.html';}
+    document.getElementById('otp-form').addEventListener('submit',async e=>{e.preventDefault();const email=document.getElementById('otp-email').value;try{if(!otpSent){await API.post('/auth/otp/request',{email,purpose:'login'});otpSent=true;document.getElementById('code-group').style.display='block';document.getElementById('otp-code').required=true;document.getElementById('otp-submit').textContent='Verify & Sign In';showAlert('If your account is active, a code has been emailed.',true);}else{const res=await API.post('/auth/otp/verify-login',{email,code:document.getElementById('otp-code').value});API.setSession(res.token,res.user);redirect();}}catch(err){showAlert(err.message);}});
+    document.getElementById('password-form').addEventListener('submit',async e=>{e.preventDefault();try{const res=await API.post('/auth/login',{email:document.getElementById('login-email').value,password:document.getElementById('login-password').value});API.setSession(res.token,res.user);redirect();}catch(err){showAlert(err.message);}});
+    document.getElementById('show-reset').onclick=()=>{const form=document.getElementById('reset-form');form.style.display=form.style.display==='none'?'block':'none';};
+    document.getElementById('reset-request').onclick=async()=>{try{await API.post('/auth/otp/request',{email:document.getElementById('reset-email').value,purpose:'password_reset'});document.getElementById('reset-purpose').value='password_reset';showAlert('If your account is active, a reset code has been emailed.',true);}catch(err){showAlert(err.message);}};
+    document.getElementById('reset-form').addEventListener('submit',async e=>{e.preventDefault();try{const res=await API.post('/auth/password/complete',{email:document.getElementById('reset-email').value,code:document.getElementById('reset-code').value,password:document.getElementById('reset-password').value,purpose:document.getElementById('reset-purpose').value});showAlert(res.message,true);}catch(err){showAlert(err.message);}});
   </script>
-</body>
-</html>
+</body></html>

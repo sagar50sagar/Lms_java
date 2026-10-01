@@ -1,4 +1,8 @@
 spring:
+  # Load local development variables (including SMTP credentials) when present.
+  # OS environment variables still take precedence in deployed environments.
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: corporate-lms
   datasource:
@@ -15,11 +19,21 @@ spring:
     baseline-on-migrate: true
   jackson:
     property-naming-strategy: SNAKE_CASE
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:true}
 server:
   port: ${PORT:8080}
   error:
     include-message: never
 app:
+  mail:
+    from: ${MAIL_FROM:no-reply@company.local}
   # Set to false in production. It only inserts data into an empty database.
   demo-data: ${DEMO_DATA:true}
   jwt:

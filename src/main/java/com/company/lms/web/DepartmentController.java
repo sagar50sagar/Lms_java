@@ -9,7 +9,15 @@ import org.springframework.http.ResponseEntity; import org.springframework.jdbc.
  @PutMapping("/{id}") @PreAuthorize("hasRole('ADMIN')") public ResponseEntity<?> update(@PathVariable long id,@RequestBody Map<String,Object>b){return db.update("UPDATE departments SET name=COALESCE(?,name),description=COALESCE(?,description) WHERE id=?",b.get("name"),b.get("description"),id)==0?ResponseEntity.status(404).body(Map.of("success",false,"message","Department not found.")):ResponseEntity.ok(message("Department updated."));}
  @DeleteMapping("/{id}") @PreAuthorize("hasRole('ADMIN')") public ResponseEntity<?> delete(@PathVariable long id){return db.update("DELETE FROM departments WHERE id=?",id)==0?ResponseEntity.status(404).body(Map.of("success",false,"message","Department not found.")):ResponseEntity.ok(message("Department deleted."));}
  @GetMapping("/{id}/employees") public Map<String,Object> employees(@PathVariable long id){return ok("employees",db.queryForList("SELECT id,employee_id,full_name,email,role,designation,is_active FROM users WHERE department_id=? AND is_active=TRUE ORDER BY full_name",id));}
- @PostMapping("/{id}/members") @PreAuthorize("hasRole('ADMIN')") public Map<String,Object> add(@PathVariable long id,@RequestBody Map<String,Object>b){db.update("UPDATE users SET department_id=? WHERE id=?",id,b.get("user_id"));return message("Employee added to department.");}
+ @PostMapping("/{id}/members") @PreAuthorize("hasRole('ADMIN')") public Map<String,Object> add(@PathVariable long id,@RequestBody Map<String,Object>b){
+   Object uIdObj = b.get("user_id");
+   if(uIdObj == null || uIdObj.toString().isBlank()){
+     throw new IllegalArgumentException("user_id is required");
+   }
+   long userId = Long.parseLong(uIdObj.toString().trim());
+   db.update("UPDATE users SET department_id=? WHERE id=?", (int)id, userId);
+   return message("Employee added to department.");
+ }
  @DeleteMapping("/{id}/members/{userId}") @PreAuthorize("hasRole('ADMIN')") public Map<String,Object> remove(@PathVariable long userId){db.update("UPDATE users SET department_id=NULL WHERE id=?",userId);return message("Employee removed from department.");}
  @PostMapping("/{id}/trainers") @PreAuthorize("hasRole('ADMIN')") public Map<String,Object> assign(@PathVariable long id,@RequestBody Map<String,Object>b,Authentication a){db.update("INSERT INTO trainer_departments(trainer_id,department_id,assigned_by) VALUES(?,?,?) ON CONFLICT(trainer_id,department_id) DO NOTHING",b.get("trainer_id"),id,userId(a));return message("Trainer assigned to department.");}
  @DeleteMapping("/{id}/trainers/{trainerId}") @PreAuthorize("hasRole('ADMIN')") public Map<String,Object> unassign(@PathVariable long id,@PathVariable long trainerId){db.update("DELETE FROM trainer_departments WHERE trainer_id=? AND department_id=?",trainerId,id);return message("Trainer removed from department.");}

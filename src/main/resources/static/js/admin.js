@@ -56,7 +56,11 @@ function setupModals() {
   document.getElementById('btn-create-user').addEventListener('click', () => {
     // Populate department dropdown
     const sel = document.getElementById('new-user-dept');
-    sel.innerHTML = '<option value="">-- None --</option>' + allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    if (allDepartments.length === 0) {
+      sel.innerHTML = '<option value="" disabled selected>No Departments available</option>';
+    } else {
+      sel.innerHTML = '<option value="">-- None --</option>' + allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    }
     document.getElementById('create-user-modal').classList.add('open');
   });
   document.getElementById('btn-assign-course').addEventListener('click', () => {
@@ -114,7 +118,9 @@ async function loadDepartments() {
     // Populate all department selects
     const assignDeptSelect = document.getElementById('assign-department-select');
     const atDeptSelect = document.getElementById('at-dept-select');
-    const deptOptions = allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    const deptOptions = allDepartments.length === 0
+      ? '<option value="" disabled selected>No Departments available</option>'
+      : allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
     if (assignDeptSelect) assignDeptSelect.innerHTML = deptOptions;
     if (atDeptSelect) atDeptSelect.innerHTML = deptOptions;
 
@@ -151,7 +157,12 @@ async function loadDepartments() {
         try {
           const empRes = await API.get('/admin/employees');
           const available = (empRes.employees || []).filter(e => String(e.department_id) !== btn.dataset.id && e.role !== 'admin');
-          document.getElementById('am-employee-select').innerHTML = available.map(e => `<option value="${e.id}">${e.full_name} (${e.email}) - ${e.role}</option>`).join('');
+          const amSel = document.getElementById('am-employee-select');
+          if (available.length === 0) {
+            amSel.innerHTML = '<option value="" disabled selected>No Employees available</option>';
+          } else {
+            amSel.innerHTML = available.map(e => `<option value="${e.id}">${e.full_name} (${e.email}) - ${e.role}</option>`).join('');
+          }
         } catch(e) {}
         document.getElementById('add-member-modal').classList.add('open');
       });
@@ -162,11 +173,14 @@ async function loadDepartments() {
         document.getElementById('at-dept-select').value = btn.dataset.id;
         // Load trainers
         try {
-          const empRes = await API.get('/admin/employees?role=trainer');
-          // Actually load from the general roster filtered
           const allRes = await API.get('/admin/employees');
           const trainers = (allRes.employees || []).filter(e => e.role === 'trainer');
-          document.getElementById('at-trainer-select').innerHTML = trainers.map(t => `<option value="${t.id}">${t.full_name} (${t.email})</option>`).join('');
+          const atSel = document.getElementById('at-trainer-select');
+          if (trainers.length === 0) {
+            atSel.innerHTML = '<option value="" disabled selected>No Trainers available</option>';
+          } else {
+            atSel.innerHTML = trainers.map(t => `<option value="${t.id}">${t.full_name} (${t.email})</option>`).join('');
+          }
         } catch(e) {}
         document.getElementById('assign-trainer-modal').classList.add('open');
       });
@@ -228,35 +242,47 @@ async function loadRoster(search = '') {
     allEmployees = res.employees || [];
 
     const empSelect = document.getElementById('assign-employee-select');
-    empSelect.innerHTML = allEmployees.filter(e => e.role === 'employee').map(e => `
-      <option value="${e.id}">${e.full_name} (${e.email}) - ${e.department_name || 'No Dept'}</option>
-    `).join('');
+    const employeesOnly = allEmployees.filter(e => e.role === 'employee');
+    if (employeesOnly.length === 0) {
+      empSelect.innerHTML = '<option value="" disabled selected>No Employees available</option>';
+    } else {
+      empSelect.innerHTML = employeesOnly.map(e => `
+        <option value="${e.id}">${e.full_name} (${e.email}) - ${e.department_name || 'No Dept'}</option>
+      `).join('');
+    }
 
     tbody.innerHTML = allEmployees.map(emp => `
       <tr>
         <td><code>${emp.employee_id || 'N/A'}</code></td>
         <td><strong>${emp.full_name}</strong><div style="font-size:0.8rem;color:var(--text-muted);">${emp.email}</div></td>
-        <td><span class="role-pill role-${emp.role}">${emp.role}</span></td>
+        <td>
+          <select class="form-control form-control-sm role-dropdown" data-id="${emp.id}" style="padding:2px 6px;font-size:0.85rem;width:auto;display:inline-block;">
+            <option value="employee" ${emp.role === 'employee' ? 'selected' : ''}>employee</option>
+            <option value="trainer" ${emp.role === 'trainer' ? 'selected' : ''}>trainer</option>
+            <option value="admin" ${emp.role === 'admin' ? 'selected' : ''}>admin</option>
+          </select>
+        </td>
         <td>${emp.department_name || '<em style="color:var(--text-muted);">Unassigned</em>'}</td>
         <td>${emp.total_assigned_courses}</td>
         <td><span style="color:var(--success);font-weight:600;">${emp.completed_courses}</span></td>
         <td><span style="color:${parseInt(emp.overdue_courses)>0?'var(--danger)':'var(--text-muted)'};font-weight:600;">${emp.overdue_courses}</span></td>
         <td>
-          <button class="btn btn-secondary btn-sm change-role-btn" data-id="${emp.id}" data-role="${emp.role}" data-name="${emp.full_name}">Edit Role</button>
           ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${emp.full_name}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${emp.full_name}">Reset Password</button>`}
         </td>
       </tr>
     `).join('');
 
-    document.querySelectorAll('.change-role-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const newRole = prompt(`Change role for ${btn.dataset.name} (admin, trainer, employee):`, btn.dataset.role);
-        if (newRole && ['admin','trainer','employee'].includes(newRole.trim().toLowerCase())) {
-          try {
-            await API.put(`/admin/users/${btn.dataset.id}`, { role: newRole.trim().toLowerCase() });
-            API.showToast('Role updated!', 'success');
-            loadRoster();
-          } catch(e) { API.showToast(e.message, 'error'); }
+    document.querySelectorAll('.role-dropdown').forEach(select => {
+      select.addEventListener('change', async (e) => {
+        const newRole = e.target.value;
+        const userId = select.dataset.id;
+        try {
+          await API.put(`/admin/users/${userId}`, { role: newRole });
+          API.showToast('Role updated successfully!', 'success');
+          loadRoster();
+        } catch(err) {
+          API.showToast(err.message, 'error');
+          loadRoster();
         }
       });
     });
@@ -286,7 +312,11 @@ async function loadCourses() {
     allCourses = res.courses || [];
 
     const select = document.getElementById('assign-course-select');
-    select.innerHTML = allCourses.map(c => `<option value="${c.id}">[${c.category}] ${c.title}</option>`).join('');
+    if (allCourses.length === 0) {
+      select.innerHTML = '<option value="" disabled selected>No Courses available</option>';
+    } else {
+      select.innerHTML = allCourses.map(c => `<option value="${c.id}">[${c.category}] ${c.title}</option>`).join('');
+    }
 
     const listEl = document.getElementById('admin-courses-list');
     if (allCourses.length === 0) {
@@ -356,13 +386,25 @@ async function handleCreateUser(e) {
 async function handleAssignCourse(e) {
   e.preventDefault();
   const course_id = document.getElementById('assign-course-select').value;
+  if (!course_id) {
+    API.showToast('Please select a course.', 'error');
+    return;
+  }
   const targetType = document.querySelector('input[name="assign-target-type"]:checked').value;
   const due_date = document.getElementById('assign-due-date').value || null;
   const payload = { course_id, due_date };
   if (targetType === 'department') {
     payload.department_id = document.getElementById('assign-department-select').value;
+    if (!payload.department_id) {
+      API.showToast('Please select a department.', 'error');
+      return;
+    }
   } else {
     payload.user_id = document.getElementById('assign-employee-select').value;
+    if (!payload.user_id) {
+      API.showToast('Please select an employee.', 'error');
+      return;
+    }
   }
   try {
     const res = await API.post('/assignments', payload);
@@ -377,6 +419,10 @@ async function handleAssignTrainer(e) {
   e.preventDefault();
   const dept_id = document.getElementById('at-dept-select').value;
   const trainer_id = document.getElementById('at-trainer-select').value;
+  if (!dept_id || !trainer_id) {
+    API.showToast('Please select both department and trainer.', 'error');
+    return;
+  }
   try {
     await API.post(`/departments/${dept_id}/trainers`, { trainer_id });
     API.showToast('Trainer assigned to department!', 'success');
@@ -389,6 +435,10 @@ async function handleAddMember(e) {
   e.preventDefault();
   const dept_id = document.getElementById('am-dept-id').value;
   const user_id = document.getElementById('am-employee-select').value;
+  if (!user_id) {
+    API.showToast('Please select a valid employee.', 'error');
+    return;
+  }
   try {
     await API.post(`/departments/${dept_id}/members`, { user_id });
     API.showToast('Employee added to department!', 'success');

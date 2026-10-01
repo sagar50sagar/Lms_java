@@ -156,7 +156,7 @@
         <form id="assign-course-form">
           <div class="form-group">
             <label class="form-label">Select Course *</label>
-            <select id="assign-course-select" class="form-control" required></select>
+            <select id="assign-course-select" class="form-control" required><option value="" disabled selected>No Courses available</option></select>
           </div>
           <div class="form-group">
             <label class="form-label">Assignment Target *</label>
@@ -167,11 +167,11 @@
           </div>
           <div class="form-group" id="target-department-group">
             <label class="form-label">Department</label>
-            <select id="assign-department-select" class="form-control"></select>
+            <select id="assign-department-select" class="form-control"><option value="" disabled selected>No Departments available</option></select>
           </div>
           <div class="form-group" id="target-employee-group" style="display:none;">
             <label class="form-label">Employee</label>
-            <select id="assign-employee-select" class="form-control"></select>
+            <select id="assign-employee-select" class="form-control"><option value="" disabled selected>No Employees available</option></select>
           </div>
           <div class="form-group">
             <label class="form-label">Completion Deadline</label>
@@ -192,11 +192,11 @@
         <form id="assign-trainer-form">
           <div class="form-group">
             <label class="form-label">Select Department *</label>
-            <select id="at-dept-select" class="form-control" required></select>
+            <select id="at-dept-select" class="form-control" required><option value="" disabled selected>No Departments available</option></select>
           </div>
           <div class="form-group">
             <label class="form-label">Select Trainer *</label>
-            <select id="at-trainer-select" class="form-control" required></select>
+            <select id="at-trainer-select" class="form-control" required><option value="" disabled selected>No Trainers available</option></select>
           </div>
           <button type="submit" class="btn btn-primary btn-block" style="margin-top:16px;">Assign Trainer</button>
         </form>
@@ -218,7 +218,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Select Employee *</label>
-            <select id="am-employee-select" class="form-control" required></select>
+            <select id="am-employee-select" class="form-control" required><option value="" disabled selected>No Employees available</option></select>
           </div>
           <button type="submit" class="btn btn-primary btn-block" style="margin-top:16px;">Add to Department</button>
         </form>

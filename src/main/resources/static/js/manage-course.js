@@ -55,9 +55,14 @@ function activateCoursePanels() {
 
   // Populate chapter select dropdown
   const chSelect = document.getElementById('lesson-chapter-select');
-  chSelect.innerHTML = (activeCourse.chapters || []).map(ch => `
-    <option value="${ch.id}">${ch.title}</option>
-  `).join('');
+  const chapters = activeCourse.chapters || [];
+  if (chapters.length === 0) {
+    chSelect.innerHTML = '<option value="" disabled selected>No Chapters available</option>';
+  } else {
+    chSelect.innerHTML = chapters.map(ch => `
+      <option value="${ch.id}">${ch.title}</option>
+    `).join('');
+  }
 
   renderCurriculumTree();
 
@@ -183,9 +188,11 @@ async function loadAssignSection() {
     const res = await API.get('/departments/my-departments');
     const depts = res.departments || [];
     const deptSelect = document.getElementById('inline-dept-select');
-    deptSelect.innerHTML = depts.map(d => `<option value="${d.id}">${d.name} (${d.employee_count} employees)</option>`).join('');
-
-    if (depts.length > 0) {
+    if (depts.length === 0) {
+      deptSelect.innerHTML = '<option value="" disabled selected>No Departments available</option>';
+      document.getElementById('inline-emp-select').innerHTML = '<option value="" disabled selected>No Employees available</option>';
+    } else {
+      deptSelect.innerHTML = depts.map(d => `<option value="${d.id}">${d.name} (${d.employee_count} employees)</option>`).join('');
       await loadDeptEmployees(depts[0].id);
     }
 
@@ -207,11 +214,19 @@ async function loadAssignSection() {
 }
 
 async function loadDeptEmployees(deptId) {
+  const empSelect = document.getElementById('inline-emp-select');
   try {
     const res = await API.get(`/departments/${deptId}/employees`);
-    const emps = res.employees || [];
-    document.getElementById('inline-emp-select').innerHTML = emps.filter(e => e.role === 'employee').map(e => `<option value="${e.id}">${e.full_name} (${e.email})</option>`).join('');
-  } catch (err) { console.error(err); }
+    const emps = (res.employees || []).filter(e => e.role === 'employee');
+    if (emps.length === 0) {
+      empSelect.innerHTML = '<option value="" disabled selected>No Employees available</option>';
+    } else {
+      empSelect.innerHTML = emps.map(e => `<option value="${e.id}">${e.full_name} (${e.email})</option>`).join('');
+    }
+  } catch (err) {
+    console.error(err);
+    empSelect.innerHTML = '<option value="" disabled selected>No Employees available</option>';
+  }
 }
 
 function renderCurriculumTree() {

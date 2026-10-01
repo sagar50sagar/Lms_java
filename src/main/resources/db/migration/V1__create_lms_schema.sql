@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(30) NOT NULL CHECK (role IN ('admin', 'trainer', 'employee')),
-    department_id VARCHAR(10) REFERENCES departments(id) ON DELETE SET NULL,
+    department_id INT REFERENCES departments(id) ON DELETE SET NULL,
     designation VARCHAR(100),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS trainer_departments (
     id SERIAL PRIMARY KEY,
     trainer_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    department_id VARCHAR(10) NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    department_id INT NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
     assigned_by INT REFERENCES users(id) ON DELETE SET NULL,
     assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(trainer_id, department_id)

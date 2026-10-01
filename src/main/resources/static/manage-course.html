@@ -104,7 +104,7 @@
           <form id="add-lesson-form">
             <div class="form-group">
               <label class="form-label">Target Chapter</label>
-              <select id="lesson-chapter-select" class="form-control" required></select>
+              <select id="lesson-chapter-select" class="form-control" required><option value="" disabled selected>No Chapters available</option></select>
             </div>
             <div class="form-group">
               <label class="form-label">Lesson Title</label>
@@ -275,11 +275,11 @@
         </div>
         <div class="form-group" id="inline-dept-group">
           <label class="form-label">Department</label>
-          <select id="inline-dept-select" class="form-control"></select>
+          <select id="inline-dept-select" class="form-control"><option value="" disabled selected>No Departments available</option></select>
         </div>
         <div class="form-group" id="inline-emp-group" style="display:none;">
           <label class="form-label">Employee</label>
-          <select id="inline-emp-select" class="form-control"></select>
+          <select id="inline-emp-select" class="form-control"><option value="" disabled selected>No Employees available</option></select>
         </div>
         <div class="form-group">
           <label class="form-label">Due Date</label>

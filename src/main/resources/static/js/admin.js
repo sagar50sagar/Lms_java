@@ -243,6 +243,7 @@ async function loadRoster(search = '') {
         <td><span style="color:${parseInt(emp.overdue_courses)>0?'var(--danger)':'var(--text-muted)'};font-weight:600;">${emp.overdue_courses}</span></td>
         <td>
           <button class="btn btn-secondary btn-sm change-role-btn" data-id="${emp.id}" data-role="${emp.role}" data-name="${emp.full_name}">Edit Role</button>
+          ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${emp.full_name}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${emp.full_name}">Reset Password</button>`}
         </td>
       </tr>
     `).join('');
@@ -257,6 +258,20 @@ async function loadRoster(search = '') {
             loadRoster();
           } catch(e) { API.showToast(e.message, 'error'); }
         }
+      });
+    });
+    document.querySelectorAll('.reset-password-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Email a password reset code to ${btn.dataset.name}?`)) return;
+        try { const result = await API.post(`/admin/users/${btn.dataset.id}/reset-password`, {}); API.showToast(result.message, 'success'); }
+        catch (e) { API.showToast(e.message, 'error'); }
+      });
+    });
+    document.querySelectorAll('.resend-setup-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Email a new account setup link to ${btn.dataset.name}? The prior link will stop working.`)) return;
+        try { const result = await API.post(`/admin/users/${btn.dataset.id}/resend-setup`, {}); API.showToast(result.message, 'success'); }
+        catch (e) { API.showToast(e.message, 'error'); }
       });
     });
   } catch (err) {

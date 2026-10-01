@@ -2,7 +2,6 @@ package com.company.lms.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,7 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.security.MessageDigest;
 import java.time.OffsetDateTime;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -21,13 +23,57 @@ public class EmailOtpService {
     private final PasswordEncoder passwords;
     private final JavaMailSender mail;
     private final String from;
+    private final String frontendUrl;
 
     public EmailOtpService(JdbcTemplate db, PasswordEncoder passwords, JavaMailSender mail,
-                           @Value("${app.mail.from:no-reply@company.local}") String from) {
+                           @Value("${app.mail.from:no-reply@company.local}") String from,
+                           @Value("${app.frontend-url:http://localhost:8080}") String frontendUrl) {
         this.db = db;
         this.passwords = passwords;
         this.mail = mail;
         this.from = from;
+        this.frontendUrl = frontendUrl.replaceAll("/+$", "");
+    }
+
+    @Transactional
+    public void sendAccountSetupLink(long userId, String email, String employeeId) {
+        db.update("UPDATE account_setup_tokens SET used_at=CURRENT_TIMESTAMP WHERE user_id=? AND used_at IS NULL", userId);
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        db.update("INSERT INTO account_setup_tokens(user_id,token_hash,expires_at) VALUES(?,?,?)", userId, sha256(token), OffsetDateTime.now().plusHours(24));
+        String link = frontendUrl + "/setup.html?token=" + token;
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(email.trim().toLowerCase());
+        message.setSubject("Set up your LMS account");
+        message.setText("Your LMS account has been created.\n\nEmployee ID: " + employeeId
+                + "\n\nSet your password and activate your account using this one-time link:\n" + link
+                + "\n\nThis link expires in 24 hours. Do not share it with anyone.");
+        try {
+            mail.send(message);
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("Unable to send the account setup email. Please try again later.", e);
+        }
+    }
+
+    @Transactional
+    public boolean completeAccountSetup(String token, String password) {
+        List<Map<String,Object>> tokens = db.queryForList("SELECT t.id,t.user_id FROM account_setup_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=? AND t.used_at IS NULL AND t.expires_at>CURRENT_TIMESTAMP AND u.is_active=TRUE AND u.password_setup_required=TRUE FOR UPDATE", sha256(token));
+        if (tokens.isEmpty()) return false;
+        Map<String,Object> setup = tokens.getFirst();
+        db.update("UPDATE account_setup_tokens SET used_at=CURRENT_TIMESTAMP WHERE id=?", setup.get("id"));
+        db.update("UPDATE users SET password_hash=?,password_setup_required=FALSE WHERE id=?", passwords.encode(password), setup.get("user_id"));
+        return true;
+    }
+
+    private String sha256(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Secure token hashing is unavailable.", e);
+        }
     }
 
     @Transactional
@@ -57,7 +103,7 @@ public class EmailOtpService {
                 + "\nCode: " + code + "\n\nThis code expires in 10 minutes. Do not share it with anyone.");
         try {
             mail.send(message);
-        } catch (MailException e) {
+        } catch (RuntimeException e) {
             throw new IllegalStateException("Unable to send the verification email. Please try again later.", e);
         }
     }

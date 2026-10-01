@@ -5,7 +5,7 @@ This enterprise-style employee training and compliance LMS keeps its browser por
 ## Run it
 
 1. Install Java 21+ and PostgreSQL, then create `lms_db`.
-2. Configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, a long `JWT_SECRET`, and SMTP (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`; see `.env.example`). Use an IDE run configuration or shell variables.
+2. Configure `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, a long `JWT_SECRET`, SMTP (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`), and initial-admin credentials (`INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`; see `.env.example`). Use an IDE run configuration or shell variables.
 3. Start it with:
 
 ```powershell
@@ -41,7 +41,9 @@ Browser static pages → Spring MVC REST controllers → PostgreSQL
 - Flyway owns the database schema; add a `V2__...sql` migration instead of changing an applied migration
 - BCrypt password hashing and stateless signed JWT authentication
 - Admin/trainer/employee role checks; only admins can delete courses or provision user accounts
-- Email OTP sign-in and password setup/reset (six-digit codes are hashed, expire after 10 minutes, and are single-use)
+- Email OTP sign-in and password reset (six-digit codes are hashed, expire after 10 minutes, and are single-use)
+- New trainer/employee accounts receive a one-time setup link instead; its SHA-256 hash is stored, it expires after 24 hours, and it is invalidated after use or when an admin resends it
+- On a deployment with no admin, `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` bootstrap exactly one admin; admins then create trainer/employee accounts that must complete emailed password setup before signing in
 - Parameterized SQL with `JdbcTemplate` and consistent JSON error responses
 
 For a real production rollout, add dev/test/prod profiles, vault-managed secrets, token revocation, audit trails, structured logging, Testcontainers integration tests, pagination, rate limits, and CI security scanning.

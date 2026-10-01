@@ -38,6 +38,7 @@ export function renderNavbar() {
         <div class="user-profile-badge">
           <span>${user.full_name || user.email}</span>
           <span class="role-pill role-${user.role}">${user.role}</span>
+          <a href="/password.html" class="btn btn-secondary btn-sm" style="margin-left: 6px; padding: 2px 8px; font-size: 0.78rem;">Password</a>
           <button id="logout-btn" class="btn btn-secondary btn-sm" style="margin-left: 6px; padding: 2px 8px; font-size: 0.78rem;">Sign Out</button>
         </div>
       </li>

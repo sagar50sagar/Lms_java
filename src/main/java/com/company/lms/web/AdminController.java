@@ -1,23 +1,144 @@
 package com.company.lms.web;
+
 import com.company.lms.service.EmailOtpService;
-import org.springframework.http.ResponseEntity; import org.springframework.jdbc.core.JdbcTemplate; import org.springframework.security.access.prepost.PreAuthorize; import org.springframework.security.crypto.password.PasswordEncoder; import org.springframework.transaction.annotation.Transactional; import org.springframework.web.bind.annotation.*; import java.util.*;
-@RestController @RequestMapping("/api/admin") @PreAuthorize("hasRole('ADMIN')") public class AdminController extends ApiSupport { private final JdbcTemplate db; private final PasswordEncoder passwords; private final EmailOtpService otp; public AdminController(JdbcTemplate db,PasswordEncoder passwords,EmailOtpService otp){this.db=db;this.passwords=passwords;this.otp=otp;}
- @GetMapping("/compliance") public Map<String,Object> compliance(){Map<String,Object> m=db.queryForMap("SELECT (SELECT COUNT(*) FROM users WHERE role='employee' AND is_active) total_employees,(SELECT COUNT(*) FROM users WHERE role='trainer' AND is_active) total_trainers,(SELECT COUNT(*) FROM courses WHERE is_published) total_courses,(SELECT COUNT(*) FROM certificates) total_certificates,COUNT(*) total_assignments,COUNT(*) FILTER(WHERE completed_at IS NOT NULL) completed_assignments,COUNT(*) FILTER(WHERE due_date<CURRENT_DATE AND completed_at IS NULL) overdue_assignments FROM course_assignments");long total=((Number)m.get("total_assignments")).longValue(),done=((Number)m.get("completed_assignments")).longValue();m.put("company_compliance_rate",total==0?100:Math.round(done*100.0/total));return Map.of("success",true,"metrics",m,"department_stats",db.queryForList("SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN users u ON u.department_id=d.id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name"));}
- @GetMapping("/employees") public Map<String,Object> employees(@RequestParam(required=false) String role,@RequestParam(required=false) String search){String sql="SELECT u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name department_name,d.id department_id FROM users u LEFT JOIN departments d ON d.id=u.department_id WHERE u.role IN ('trainer','employee')";List<Object> p=new ArrayList<>();if(role!=null && List.of("trainer","employee").contains(role)){sql+=" AND u.role=?";p.add(role);}if(search!=null){sql+=" AND (u.full_name ILIKE ? OR u.email ILIKE ? OR u.employee_id ILIKE ?)";for(int i=0;i<3;i++)p.add("%"+search+"%");}return ok("employees",db.queryForList(sql+" ORDER BY u.full_name",p.toArray()));}
- @PostMapping("/users") @Transactional public ResponseEntity<?> create(@RequestBody Map<String,Object>b){
-   if(b.get("full_name")==null||b.get("email")==null)return ResponseEntity.badRequest().body(Map.of("success",false,"message","full_name and email are required."));
-   String email=b.get("email").toString().trim().toLowerCase(), role=String.valueOf(b.getOrDefault("role","employee"));
-   if(!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) return ResponseEntity.badRequest().body(Map.of("success",false,"message","A valid email address is required."));
-   if(!List.of("trainer","employee").contains(role)) return ResponseEntity.badRequest().body(Map.of("success",false,"message","Only trainer and employee accounts can be created here."));
-   if(!db.queryForList("SELECT id FROM users WHERE LOWER(email)=LOWER(?)",email).isEmpty()) return ResponseEntity.status(409).body(Map.of("success",false,"message","An account with this email already exists."));
-   String employeeId=b.get("employee_id")==null||b.get("employee_id").toString().isBlank()?"EMP-"+(100000+new java.security.SecureRandom().nextInt(900000)):b.get("employee_id").toString().trim();
-   Integer departmentId=departmentId(b); if(b.containsKey("department_id")&&b.get("department_id")!=null&&departmentId==null)return ResponseEntity.badRequest().body(Map.of("success",false,"message","Department must be a valid numeric ID."));
-   Map<String,Object> u=db.queryForMap("INSERT INTO users(employee_id,full_name,email,password_hash,role,department_id,designation,password_setup_required) VALUES(?,?,?,?,?,?,?,TRUE) RETURNING id,employee_id,full_name,email,role,department_id,designation,is_active,password_setup_required",employeeId,b.get("full_name").toString().trim(),email,passwords.encode(java.util.UUID.randomUUID().toString()),role,departmentId,b.get("designation"));
-   otp.sendAccountSetupLink(((Number)u.get("id")).longValue(),email,employeeId);
-   return ResponseEntity.status(201).body(Map.of("success",true,"message","User created. A one-time account setup link was emailed.","user",u));
- }
-  @PutMapping("/users/{id}") public ResponseEntity<?> update(@PathVariable long id,@RequestBody Map<String,Object>b){String role=b.get("role")==null?null:b.get("role").toString().trim().toLowerCase();if(role!=null&&!List.of("trainer","employee","admin").contains(role))return ResponseEntity.badRequest().body(Map.of("success",false,"message","Role must be admin, trainer, or employee."));Integer departmentId=departmentId(b);if(b.containsKey("department_id")&&b.get("department_id")!=null&&departmentId==null)return ResponseEntity.badRequest().body(Map.of("success",false,"message","Department must be a valid numeric ID."));return db.update("UPDATE users SET role=COALESCE(?,role),department_id=COALESCE(?,department_id),designation=COALESCE(?,designation),is_active=COALESCE(?,is_active) WHERE id=?",role,departmentId,b.get("designation"),b.get("is_active"),id)==0?ResponseEntity.status(404).body(Map.of("success",false,"message","User not found.")):ResponseEntity.ok(message("User updated successfully."));}
- @PostMapping("/users/{id}/reset-password") public ResponseEntity<?> resetPassword(@PathVariable long id){List<Map<String,Object>> users=db.queryForList("SELECT email,employee_id,password_setup_required FROM users WHERE id=? AND role IN ('trainer','employee') AND is_active=TRUE",id);if(users.isEmpty())return ResponseEntity.status(404).body(Map.of("success",false,"message","Active normal user not found."));Map<String,Object> user=users.getFirst();if(Boolean.TRUE.equals(user.get("password_setup_required")))return ResponseEntity.badRequest().body(Map.of("success",false,"message","This user has not activated their account. Resend the setup link instead."));otp.send((String)user.get("email"),"password_reset",(String)user.get("employee_id"));return ResponseEntity.ok(message("Password reset code emailed to the user."));}
- @PostMapping("/users/{id}/resend-setup") public ResponseEntity<?> resendSetup(@PathVariable long id){List<Map<String,Object>> users=db.queryForList("SELECT id,email,employee_id FROM users WHERE id=? AND role IN ('trainer','employee') AND is_active=TRUE AND password_setup_required=TRUE",id);if(users.isEmpty())return ResponseEntity.status(404).body(Map.of("success",false,"message","Pending account setup user not found."));Map<String,Object> user=users.getFirst();otp.sendAccountSetupLink(((Number)user.get("id")).longValue(),(String)user.get("email"),(String)user.get("employee_id"));return ResponseEntity.ok(message("A new account setup link was emailed to the user."));}
- private Integer departmentId(Map<String,Object> body){Object value=body.get("department_id");if(value==null||value.toString().isBlank())return null;try{return Integer.valueOf(value.toString());}catch(NumberFormatException ignored){return null;}}
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import java.util.*;
+
+@RestController
+@RequestMapping("/api/admin")
+@PreAuthorize("hasRole('ADMIN')")
+public class AdminController extends ApiSupport {
+	private final JdbcTemplate db;
+	private final PasswordEncoder passwords;
+	private final EmailOtpService otp;
+
+	public AdminController(JdbcTemplate db, PasswordEncoder passwords, EmailOtpService otp) {
+		this.db = db;
+		this.passwords = passwords;
+		this.otp = otp;
+	}
+
+	@GetMapping("/compliance")
+	public Map<String, Object> compliance() {
+		Map<String, Object> m = db.queryForMap(
+				"SELECT (SELECT COUNT(*) FROM users WHERE role='employee' AND is_active) total_employees,(SELECT COUNT(*) FROM users WHERE role='trainer' AND is_active) total_trainers,(SELECT COUNT(*) FROM courses WHERE is_published) total_courses,(SELECT COUNT(*) FROM certificates) total_certificates,COUNT(*) total_assignments,COUNT(*) FILTER(WHERE completed_at IS NOT NULL) completed_assignments,COUNT(*) FILTER(WHERE due_date<CURRENT_DATE AND completed_at IS NULL) overdue_assignments FROM course_assignments");
+		long total = ((Number) m.get("total_assignments")).longValue(),
+				done = ((Number) m.get("completed_assignments")).longValue();
+		m.put("company_compliance_rate", total == 0 ? 100 : Math.round(done * 100.0 / total));
+		return Map.of("success", true, "metrics", m, "department_stats", db.queryForList(
+				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN users u ON u.department_id=d.id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name"));
+	}
+
+	@GetMapping("/employees")
+	public Map<String, Object> employees(@RequestParam(required = false) String role,
+			@RequestParam(required = false) String search) {
+		String sql = "SELECT u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name department_name,d.id department_id FROM users u LEFT JOIN departments d ON d.id=u.department_id WHERE u.role IN ('trainer','employee')";
+		List<Object> p = new ArrayList<>();
+		if (role != null && List.of("trainer", "employee").contains(role)) {
+			sql += " AND u.role=?";
+			p.add(role);
+		}
+		if (search != null) {
+			sql += " AND (u.full_name ILIKE ? OR u.email ILIKE ? OR u.employee_id ILIKE ?)";
+			for (int i = 0; i < 3; i++)
+				p.add("%" + search + "%");
+		}
+		return ok("employees", db.queryForList(sql + " ORDER BY u.full_name", p.toArray()));
+	}
+
+	@PostMapping("/users")
+	@Transactional
+	public ResponseEntity<?> create(@RequestBody Map<String, Object> b) {
+		if (b.get("full_name") == null || b.get("email") == null)
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "full_name and email are required."));
+		String email = b.get("email").toString().trim().toLowerCase(),
+				role = String.valueOf(b.getOrDefault("role", "employee"));
+		if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "A valid email address is required."));
+		if (!List.of("trainer", "employee").contains(role))
+			return ResponseEntity.badRequest().body(
+					Map.of("success", false, "message", "Only trainer and employee accounts can be created here."));
+		if (!db.queryForList("SELECT id FROM users WHERE LOWER(email)=LOWER(?)", email).isEmpty())
+			return ResponseEntity.status(409)
+					.body(Map.of("success", false, "message", "An account with this email already exists."));
+		String employeeId = b.get("employee_id") == null || b.get("employee_id").toString().isBlank()
+				? "EMP-" + (100000 + new java.security.SecureRandom().nextInt(900000))
+				: b.get("employee_id").toString().trim();
+		Integer departmentId = departmentId(b);
+		if (b.containsKey("department_id") && b.get("department_id") != null && departmentId == null)
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
+		Map<String, Object> u = db.queryForMap(
+				"INSERT INTO users(employee_id,full_name,email,password_hash,role,department_id,designation,password_setup_required) VALUES(?,?,?,?,?,?,?,TRUE) RETURNING id,employee_id,full_name,email,role,department_id,designation,is_active,password_setup_required",
+				employeeId, b.get("full_name").toString().trim(), email,
+				passwords.encode(java.util.UUID.randomUUID().toString()), role, departmentId, b.get("designation"));
+		otp.sendAccountSetupLink(((Number) u.get("id")).longValue(), email, employeeId);
+		return ResponseEntity.status(201).body(Map.of("success", true, "message",
+				"User created. A one-time account setup link was emailed.", "user", u));
+	}
+
+	@PutMapping("/users/{id}")
+	public ResponseEntity<?> update(@PathVariable long id, @RequestBody Map<String, Object> b) {
+		String role = b.get("role") == null ? null : b.get("role").toString().trim().toLowerCase();
+		if (role != null && !List.of("trainer", "employee", "admin").contains(role))
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "Role must be admin, trainer, or employee."));
+		Integer departmentId = departmentId(b);
+		if (b.containsKey("department_id") && b.get("department_id") != null && departmentId == null)
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
+		return db.update(
+				"UPDATE users SET role=COALESCE(?,role),department_id=COALESCE(?,department_id),designation=COALESCE(?,designation),is_active=COALESCE(?,is_active) WHERE id=?",
+				role, departmentId, b.get("designation"), b.get("is_active"), id) == 0
+						? ResponseEntity.status(404).body(Map.of("success", false, "message", "User not found."))
+						: ResponseEntity.ok(message("User updated successfully."));
+	}
+
+	@PostMapping("/users/{id}/reset-password")
+	public ResponseEntity<?> resetPassword(@PathVariable long id) {
+		List<Map<String, Object>> users = db.queryForList(
+				"SELECT email,employee_id,password_setup_required FROM users WHERE id=? AND role IN ('trainer','employee') AND is_active=TRUE",
+				id);
+		if (users.isEmpty())
+			return ResponseEntity.status(404)
+					.body(Map.of("success", false, "message", "Active normal user not found."));
+		Map<String, Object> user = users.getFirst();
+		if (Boolean.TRUE.equals(user.get("password_setup_required")))
+			return ResponseEntity.badRequest().body(Map.of("success", false, "message",
+					"This user has not activated their account. Resend the setup link instead."));
+		otp.send((String) user.get("email"), "password_reset", (String) user.get("employee_id"));
+		return ResponseEntity.ok(message("Password reset code emailed to the user."));
+	}
+
+	@PostMapping("/users/{id}/resend-setup")
+	public ResponseEntity<?> resendSetup(@PathVariable long id) {
+		List<Map<String, Object>> users = db.queryForList(
+				"SELECT id,email,employee_id FROM users WHERE id=? AND role IN ('trainer','employee') AND is_active=TRUE AND password_setup_required=TRUE",
+				id);
+		if (users.isEmpty())
+			return ResponseEntity.status(404)
+					.body(Map.of("success", false, "message", "Pending account setup user not found."));
+		Map<String, Object> user = users.getFirst();
+		otp.sendAccountSetupLink(((Number) user.get("id")).longValue(), (String) user.get("email"),
+				(String) user.get("employee_id"));
+		return ResponseEntity.ok(message("A new account setup link was emailed to the user."));
+	}
+
+	private Integer departmentId(Map<String, Object> body) {
+		Object value = body.get("department_id");
+		if (value == null || value.toString().isBlank())
+			return null;
+		try {
+			return Integer.valueOf(value.toString());
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
+	}
 }

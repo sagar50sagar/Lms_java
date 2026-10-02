@@ -25,19 +25,28 @@ public class AdminController extends ApiSupport {
 
 	@GetMapping("/compliance")
 	public Map<String, Object> compliance() {
-		Map<String, Object> m = db.queryForMap(
-				"SELECT (SELECT COUNT(*) FROM users WHERE role='employee' AND is_active) total_employees,(SELECT COUNT(*) FROM users WHERE role='trainer' AND is_active) total_trainers,(SELECT COUNT(*) FROM courses WHERE is_published) total_courses,(SELECT COUNT(*) FROM certificates) total_certificates,COUNT(*) total_assignments,COUNT(*) FILTER(WHERE completed_at IS NOT NULL) completed_assignments,COUNT(*) FILTER(WHERE due_date<CURRENT_DATE AND completed_at IS NULL) overdue_assignments FROM course_assignments");
+		Map<String, Object> m = new LinkedHashMap<>(db.queryForMap(
+				"SELECT (SELECT COUNT(*) FROM users WHERE role='employee' AND is_active) total_employees,(SELECT COUNT(*) FROM users WHERE role='trainer' AND is_active) total_trainers,(SELECT COUNT(*) FROM courses WHERE is_published) total_courses,(SELECT COUNT(*) FROM certificates) total_certificates,COUNT(*) total_assignments,COUNT(*) FILTER(WHERE completed_at IS NOT NULL) completed_assignments,COUNT(*) FILTER(WHERE due_date<CURRENT_DATE AND completed_at IS NULL) overdue_assignments FROM course_assignments"));
 		long total = ((Number) m.get("total_assignments")).longValue(),
 				done = ((Number) m.get("completed_assignments")).longValue();
 		m.put("company_compliance_rate", total == 0 ? 100 : Math.round(done * 100.0 / total));
-		return Map.of("success", true, "metrics", m, "department_stats", db.queryForList(
-				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN users u ON u.department_id=d.id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name"));
+		List<Map<String, Object>> rows = db.queryForList(
+				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN users u ON u.department_id=d.id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name");
+		List<Map<String, Object>> deptStats = new ArrayList<>();
+		for (Map<String, Object> row : rows) {
+			Map<String, Object> d = new LinkedHashMap<>(row);
+			long dTotal = d.get("total_assignments") != null ? ((Number) d.get("total_assignments")).longValue() : 0;
+			long dDone = d.get("completed_assignments") != null ? ((Number) d.get("completed_assignments")).longValue() : 0;
+			d.put("compliance_percent", dTotal == 0 ? 100 : Math.round(dDone * 100.0 / dTotal));
+			deptStats.add(d);
+		}
+		return Map.of("success", true, "metrics", m, "department_stats", deptStats);
 	}
 
 	@GetMapping("/employees")
 	public Map<String, Object> employees(@RequestParam(required = false) String role,
 			@RequestParam(required = false) String search) {
-		String sql = "SELECT u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name department_name,d.id department_id FROM users u LEFT JOIN departments d ON d.id=u.department_id WHERE u.role IN ('trainer','employee')";
+		String sql = "SELECT u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name department_name,d.id department_id,COUNT(DISTINCT ca.id) total_assigned_courses,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_courses,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_courses FROM users u LEFT JOIN departments d ON d.id=u.department_id LEFT JOIN course_assignments ca ON ca.user_id=u.id WHERE u.role IN ('trainer','employee')";
 		List<Object> p = new ArrayList<>();
 		if (role != null && List.of("trainer", "employee").contains(role)) {
 			sql += " AND u.role=?";
@@ -48,7 +57,7 @@ public class AdminController extends ApiSupport {
 			for (int i = 0; i < 3; i++)
 				p.add("%" + search + "%");
 		}
-		return ok("employees", db.queryForList(sql + " ORDER BY u.full_name", p.toArray()));
+		return ok("employees", db.queryForList(sql + " GROUP BY u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name,d.id ORDER BY u.full_name", p.toArray()));
 	}
 
 	@PostMapping("/users")
@@ -87,9 +96,9 @@ public class AdminController extends ApiSupport {
 	@PutMapping("/users/{id}")
 	public ResponseEntity<?> update(@PathVariable long id, @RequestBody Map<String, Object> b) {
 		String role = b.get("role") == null ? null : b.get("role").toString().trim().toLowerCase();
-		if (role != null && !List.of("trainer", "employee", "admin").contains(role))
+		if (role != null && !List.of("trainer", "employee").contains(role))
 			return ResponseEntity.badRequest()
-					.body(Map.of("success", false, "message", "Role must be admin, trainer, or employee."));
+					.body(Map.of("success", false, "message", "Role must be trainer or employee."));
 		Integer departmentId = departmentId(b);
 		if (b.containsKey("department_id") && b.get("department_id") != null && departmentId == null)
 			return ResponseEntity.badRequest()

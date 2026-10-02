@@ -233,7 +233,11 @@ async function loadAdminSummary() {
                 </tr>
               </thead>
               <tbody>
-                ${res.department_stats.map(d => `
+                ${res.department_stats.map(d => {
+                  const compPercent = d.compliance_percent != null
+                    ? d.compliance_percent
+                    : (parseInt(d.total_assignments) > 0 ? Math.round(parseInt(d.completed_assignments) * 100 / parseInt(d.total_assignments)) : 100);
+                  return `
                   <tr>
                     <td><strong>${d.department_name}</strong></td>
                     <td>${d.employee_count}</td>
@@ -242,14 +246,14 @@ async function loadAdminSummary() {
                     <td><span style="color: ${parseInt(d.overdue_assignments) > 0 ? 'var(--danger)' : 'var(--text-muted)'}; font-weight: 600;">${d.overdue_assignments}</span></td>
                     <td>
                       <div style="display: flex; align-items: center; gap: 8px;">
-                        <span>${d.compliance_percent}%</span>
+                        <span>${compPercent}%</span>
                         <div class="progress-bar-container" style="width: 80px; margin: 0;">
-                          <div class="progress-bar-fill ${d.compliance_percent >= 80 ? 'completed' : ''}" style="width: ${d.compliance_percent}%;"></div>
+                          <div class="progress-bar-fill ${compPercent >= 80 ? 'completed' : ''}" style="width: ${compPercent}%;"></div>
                         </div>
                       </div>
                     </td>
                   </tr>
-                `).join('')}
+                `;}).join('')}
               </tbody>
             </table>
           </div>

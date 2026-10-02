@@ -96,16 +96,20 @@ async function loadComplianceMetrics() {
       <div class="card" style="padding:16px;"><div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Overdue</div><div style="font-size:1.8rem;font-weight:700;color:var(--danger);">${m.overdue_assignments}</div></div>
       <div class="card" style="padding:16px;"><div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Certificates</div><div style="font-size:1.8rem;font-weight:700;color:var(--success);">${m.total_certificates}</div></div>
     `;
-    deptBody.innerHTML = res.department_stats.map(d => `
+    deptBody.innerHTML = res.department_stats.map(d => {
+      const compPercent = d.compliance_percent != null
+        ? d.compliance_percent
+        : (parseInt(d.total_assignments) > 0 ? Math.round(parseInt(d.completed_assignments) * 100 / parseInt(d.total_assignments)) : 100);
+      return `
       <tr>
         <td><strong>${d.department_name}</strong></td>
         <td>${d.employee_count}</td>
         <td>${d.total_assignments}</td>
         <td><span style="color:var(--success);font-weight:600;">${d.completed_assignments}</span></td>
         <td><span style="color:${parseInt(d.overdue_assignments)>0?'var(--danger)':'var(--text-muted)'};font-weight:600;">${d.overdue_assignments}</span></td>
-        <td><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:600;">${d.compliance_percent}%</span><div class="progress-bar-container" style="width:80px;margin:0;"><div class="progress-bar-fill ${d.compliance_percent>=80?'completed':''}" style="width:${d.compliance_percent}%;"></div></div></div></td>
+        <td><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:600;">${compPercent}%</span><div class="progress-bar-container" style="width:80px;margin:0;"><div class="progress-bar-fill ${compPercent>=80?'completed':''}" style="width:${compPercent}%;"></div></div></div></td>
       </tr>
-    `).join('');
+    `;}).join('');
   } catch (err) { console.error('Compliance metrics error:', err); }
 }
 
@@ -259,7 +263,6 @@ async function loadRoster(search = '') {
           <select class="form-control form-control-sm role-dropdown" data-id="${emp.id}" style="padding:2px 6px;font-size:0.85rem;width:auto;display:inline-block;">
             <option value="employee" ${emp.role === 'employee' ? 'selected' : ''}>employee</option>
             <option value="trainer" ${emp.role === 'trainer' ? 'selected' : ''}>trainer</option>
-            <option value="admin" ${emp.role === 'admin' ? 'selected' : ''}>admin</option>
           </select>
         </td>
         <td>${emp.department_name || '<em style="color:var(--text-muted);">Unassigned</em>'}</td>

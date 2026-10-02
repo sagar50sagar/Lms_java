@@ -68,7 +68,13 @@ function renderQuestions(questions) {
   }
 
   container.innerHTML = questions.map((q, idx) => {
-    const options = Array.isArray(q.options) ? q.options : [];
+    // options may arrive as a parsed array or (edge case) as a raw JSON string from JSONB
+    let options = [];
+    if (Array.isArray(q.options)) {
+      options = q.options;
+    } else if (typeof q.options === 'string' && q.options.trim().startsWith('[')) {
+      try { options = JSON.parse(q.options); } catch { options = []; }
+    }
     const isMsq = q.question_type === 'msq';
     const inputType = isMsq ? 'checkbox' : 'radio';
     const hintText = isMsq ? '<span class="badge" style="background:#fef3c7; color:#92400e; margin-left:8px; font-size:0.75rem;">MSQ: Select ALL correct options</span>' : '';

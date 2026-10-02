@@ -405,13 +405,22 @@ function setupEventListeners() {
 
     // Get current questions array or initialize
     const existingQuestions = currentQuiz && Array.isArray(currentQuiz.questions)
-      ? currentQuiz.questions.map(q => ({
-          question_type: q.question_type || 'mcq',
-          question_text: q.question_text,
-          options: q.options,
-          correct_option: q.correct_option,
-          explanation: q.explanation,
-        }))
+      ? currentQuiz.questions.map(q => {
+          // Normalize options: always send as a plain array
+          // (guards against PGobject serialization artifact if options came back as a string)
+          let opts = q.options;
+          if (typeof opts === 'string') {
+            try { opts = JSON.parse(opts); } catch { opts = []; }
+          }
+          if (!Array.isArray(opts)) opts = [];
+          return {
+            question_type: q.question_type || 'mcq',
+            question_text: q.question_text,
+            options: opts,
+            correct_option: q.correct_option,
+            explanation: q.explanation,
+          };
+        })
       : [];
 
     const updatedQuestions = [...existingQuestions, newQuestion];

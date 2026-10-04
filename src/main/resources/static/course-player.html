@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Training Classroom - Enterprise LMS</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/player.css">
 </head>
 <body>
   <!-- Player Top Bar -->
-  <header style="height: 64px; background: #ffffff; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 10;">
+  <header class="player-topbar" style="height: 64px; background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 10;">
     <div style="display: flex; align-items: center; gap: 16px;">
       <a href="/dashboard.html" class="btn btn-secondary btn-sm">← Exit to Dashboard</a>
       <h2 id="player-course-title" style="font-size: 1.1rem; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 450px;">
@@ -51,7 +51,7 @@
       <div class="player-content-area">
         <div class="lesson-header">
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <span id="lesson-chapter-badge" class="badge" style="background: #f1f5f9; color: var(--text-muted);">Module</span>
+            <span id="lesson-chapter-badge" class="badge" style="background: var(--border); color: var(--text-muted);">Module</span>
             <span id="lesson-duration-badge" class="badge badge-optional">⏱ 10 mins</span>
           </div>
           <h1 id="lesson-main-title">Loading Lesson...</h1>
@@ -91,5 +91,7 @@
   </div>
 
   <script type="module" src="/js/player.js"></script>
+  <script type="module" src="/js/theme.js"></script>
+  <script type="module" src="/js/footer.js"></script>
 </body>
 </html>

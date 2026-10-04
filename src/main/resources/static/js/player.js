@@ -1,5 +1,6 @@
 import { API } from './api.js';
 import { requireAuth } from './auth.js';
+import { UI } from './ui.js';
 
 let currentCourse = null;
 let allLessons = [];
@@ -14,7 +15,7 @@ async function initPlayer() {
   const courseId = urlParams.get('id');
 
   if (!courseId) {
-    alert('No course ID specified.');
+    await UI.alert({ title: 'No Course Selected', message: 'No course ID specified. Redirecting to your dashboard.', type: 'warning' });
     window.location.href = '/dashboard.html';
     return;
   }
@@ -50,7 +51,7 @@ async function initPlayer() {
     attachEventListeners();
   } catch (err) {
     console.error('Failed to load course player:', err);
-    alert(`Failed to load training: ${err.message}`);
+    await UI.alert({ title: 'Failed to Load Training', message: err.message, type: 'danger' });
     window.location.href = '/dashboard.html';
   }
 }
@@ -191,6 +192,9 @@ function updateProgressUI() {
       <a href="/certificate-view.html?code=${userProgress.certificate.certificate_code}" target="_blank" class="btn btn-secondary btn-sm" style="color: var(--success); font-weight: 700;">
         📜 Certificate
       </a>
+      <button type="button" class="btn btn-primary btn-sm cert-pdf-btn" data-code="${userProgress.certificate.certificate_code}" style="margin-left:6px">
+        ⬇️ PDF
+      </button>
     `;
   }
 

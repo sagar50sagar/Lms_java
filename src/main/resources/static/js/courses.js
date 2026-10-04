@@ -57,12 +57,6 @@ async function fetchAndRenderCourses() {
 document.addEventListener('DOMContentLoaded', () => {
   currentUser = API.getUser();
 
-  // Employees can only see their assigned courses on dashboard
-  if (currentUser && currentUser.role === 'employee') {
-    window.location.href = '/dashboard.html';
-    return;
-  }
-
   fetchAndRenderCourses();
 
   const searchInput = document.getElementById('course-search-input');

@@ -1,5 +1,6 @@
 import { API } from './api.js';
 import { requireAuth } from './auth.js';
+import { UI } from './ui.js';
 
 let quizData = null;
 
@@ -11,7 +12,7 @@ async function initQuiz() {
   const courseId = urlParams.get('courseId');
 
   if (!courseId) {
-    alert('No course ID provided.');
+    await UI.alert({ title: 'No Course Selected', message: 'No course ID provided. Redirecting to your dashboard.', type: 'warning' });
     window.location.href = '/dashboard.html';
     return;
   }
@@ -138,6 +139,18 @@ document.getElementById('quiz-form').addEventListener('submit', async (e) => {
     }
   });
 
+  const blank = quizData.questions.filter(q => !answers[q.id] || String(answers[q.id]).trim() === '').length;
+  if (!(await UI.confirm({
+    title: 'Submit Test?',
+    message: `Submit your ${quizData.questions.length} answer${quizData.questions.length === 1 ? '' : 's'} for review?`,
+    items: [
+      blank ? { label: `${blank} question${blank === 1 ? '' : 's'} left blank`, text: 'will be marked wrong.' } : null,
+      'Your answers are saved to your record and cannot be edited afterwards.',
+      'Passing with every lesson finished completes the course and issues your certificate.',
+    ],
+    type: 'question', confirmText: 'Submit Answers'
+  }))) return;
+
   try {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -161,9 +174,14 @@ document.getElementById('quiz-form').addEventListener('submit', async (e) => {
         <div style="margin-top: 16px; padding: 16px; background: var(--success-bg); border: 1px solid #86efac; border-radius: var(--radius);">
           <div style="font-weight: 700; color: #166534; font-size: 1.05rem;">📜 Official Certificate Awarded!</div>
           <p style="color: #15803d; font-size: 0.9rem; margin: 4px 0 12px 0;">Certificate Code: <strong>${result.certificate_code}</strong></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <a href="/certificate-view.html?code=${result.certificate_code}" target="_blank" class="btn btn-primary btn-sm">
-            View & Print Certificate 📜
+            View Certificate 📜
           </a>
+          <button type="button" class="btn btn-secondary btn-sm cert-pdf-btn" data-code="${result.certificate_code}">
+            Download PDF ⬇️
+          </button>
+          </div>
         </div>
       `;
     }
@@ -213,7 +231,7 @@ document.getElementById('quiz-form').addEventListener('submit', async (e) => {
     submitBtn.style.display = 'none';
 
   } catch (err) {
-    alert(`Submission error: ${err.message}`);
+    await UI.alert({ title: 'Submission Failed', message: err.message, type: 'danger' });
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit Assessment Answers';

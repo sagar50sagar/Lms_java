@@ -89,16 +89,37 @@ export const API = {
     return this.request(endpoint, { method: 'DELETE' });
   },
 
+  async downloadFile(endpoint, filename) {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+    const headers = {};
+    const token = this.getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error('Download failed.');
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  },
+
+  downloadCertificate(code) {
+    return this.downloadFile(`/progress/certificates/${code}/pdf`, `Certificate-${code}.pdf`);
+  },
+
   showToast(message, type = 'info') {
     const existing = document.getElementById('toast-notification');
     if (existing) existing.remove();
 
     const toast = document.createElement('div');
     toast.id = 'toast-notification';
+    // Phones: full-width banner clear of the bottom nav. Larger screens: bottom-right card.
+    const phone = window.matchMedia('(max-width: 640px)').matches;
     toast.style.position = 'fixed';
-    toast.style.bottom = '24px';
-    toast.style.right = '24px';
-    toast.style.padding = '12px 20px';
+    toast.style.padding = phone ? '12px 16px' : '12px 20px';
     toast.style.borderRadius = '8px';
     toast.style.fontSize = '0.9rem';
     toast.style.fontWeight = '600';
@@ -106,6 +127,15 @@ export const API = {
     toast.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.2)';
     toast.style.zIndex = '9999';
     toast.style.transition = 'opacity 0.3s ease';
+    toast.style.maxWidth = phone ? 'none' : '360px';
+    if (phone) {
+      toast.style.left = '12px';
+      toast.style.right = '12px';
+      toast.style.bottom = `calc(var(--bottom-nav-height, 64px) + env(safe-area-inset-bottom, 0px) + 12px)`;
+    } else {
+      toast.style.right = '24px';
+      toast.style.bottom = '24px';
+    }
 
     if (type === 'success') {
       toast.style.background = '#16a34a';

@@ -44,10 +44,10 @@ public class AssignmentController extends ApiSupport {
      }
    } else {
      int deptInt = Integer.parseInt(deptObj.toString().trim());
-     users = db.queryForList("SELECT id FROM users WHERE department_id=? AND is_active=TRUE AND role='employee'", Long.class, deptInt);
+     users = db.queryForList("SELECT u.id FROM user_departments ud JOIN users u ON u.id=ud.user_id WHERE ud.department_id=? AND u.is_active=TRUE AND u.role='employee'", Long.class, deptInt);
      if("trainer".equals(role(a))){
-       List<Map<String,Object>> td = db.queryForList("SELECT id FROM trainer_departments WHERE trainer_id=? AND department_id=?", userId(a), deptInt);
-       if(td.isEmpty()){
+       List<Map<String,Object>> allowed = db.queryForList("SELECT 1 FROM trainer_departments WHERE trainer_id=? AND department_id=?", userId(a), deptInt);
+       if(allowed.isEmpty()){
          return ResponseEntity.status(403).body(Map.of("success",false,"message","You are not assigned to this department."));
        }
      }
@@ -68,6 +68,7 @@ public class AssignmentController extends ApiSupport {
    for (Long u : users) {
      db.update("INSERT INTO course_assignments(course_id,user_id,assigned_by,due_date,status) VALUES(?,?,?,?, 'enrolled') ON CONFLICT(course_id,user_id) DO UPDATE SET due_date=EXCLUDED.due_date,assigned_by=EXCLUDED.assigned_by", courseId, u, userId(a), dueDate);
    }
+   db.update("UPDATE courses SET is_published=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=?", courseId);
 
    return ResponseEntity.ok(Map.of("success",true,"message","Course assigned successfully to "+users.size()+" employee(s).","assigned_count",users.size()));
  }
@@ -86,6 +87,7 @@ public class AssignmentController extends ApiSupport {
    long uid = userId(a);
    java.sql.Date dueDate = java.sql.Date.valueOf(java.time.LocalDate.now().plusDays(30));
    db.update("INSERT INTO course_assignments(course_id,user_id,assigned_by,due_date,status) VALUES(?,?,?,?, 'enrolled') ON CONFLICT(course_id,user_id) DO NOTHING", courseId, uid, uid, dueDate);
+   db.update("UPDATE courses SET is_published=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=?", courseId);
    return ResponseEntity.ok(Map.of("success",true,"message","Successfully enrolled in training course."));
  }
 }

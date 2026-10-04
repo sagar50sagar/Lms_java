@@ -1,4 +1,15 @@
 import { API } from './api.js';
+import { UI } from './ui.js';
+
+// PDF certificate downloads (delegated; all pages import this module).
+// Route to the certificate view so the downloaded file matches the on-screen design.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.cert-pdf-btn');
+  if (!btn) return;
+  e.preventDefault();
+  const code = btn.dataset.code;
+  window.location.href = `/certificate-view.html?code=${encodeURIComponent(code)}`;
+});
 
 export function renderNavbar() {
   const navContainer = document.querySelector('.navbar');
@@ -64,8 +75,11 @@ export function renderNavbar() {
   navContainer.innerHTML = `
     <div class="container nav-container">
       <a href="/index.html" class="nav-brand">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>
-        <span>LMS Portal</span>
+        <img class="nav-brand-logo" src="/images/logo.jpeg" alt="QT Consultancy logo">
+        <span class="nav-brand-text">
+          <span class="nav-brand-name">QT Consultancy</span>
+          <span class="nav-brand-tag">Trusted Manpower Supplier</span>
+        </span>
       </a>
 
       <!-- Desktop Links -->
@@ -170,8 +184,8 @@ export function requireRole(...allowedRoles) {
   if (user.role === 'admin') return user;
 
   if (!allowedRoles.includes(user.role)) {
-    alert(`Access Restricted: This section requires one of [${allowedRoles.join(', ')}] role.`);
-    window.location.href = '/dashboard.html';
+    UI.alert({ title: 'Access Restricted', message: `This section requires one of [${allowedRoles.join(', ')}] role. Redirecting to your dashboard.`, type: 'warning' })
+      .then(() => { window.location.href = '/dashboard.html'; });
     return null;
   }
   return user;

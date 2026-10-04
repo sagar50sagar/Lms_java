@@ -174,8 +174,11 @@ async function loadCertificates() {
             Issued: ${new Date(c.issued_at).toLocaleDateString()}
           </p>
           <a href="/certificate-view.html?code=${c.certificate_code}" target="_blank" class="btn btn-secondary btn-sm btn-block">
-            View & Print Certificate 📜
+            View Certificate 📜
           </a>
+          <button type="button" class="btn btn-primary btn-sm btn-block cert-pdf-btn" data-code="${c.certificate_code}" style="margin-top:8px">
+            Download PDF ⬇️
+          </button>
         </div>
       `).join('');
     }
@@ -215,7 +218,7 @@ async function loadAdminSummary() {
 
     if (roleSections) {
       roleSections.innerHTML = `
-        <div class="card" style="margin-bottom: 32px; background: #f8fafc;">
+        <div class="card" style="margin-bottom: 32px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <h3 style="font-size: 1.15rem; color: var(--secondary);">🏢 Department Compliance Snapshot</h3>
             <a href="/admin.html" class="btn btn-primary btn-sm">Manage & Assign Courses →</a>
@@ -239,12 +242,12 @@ async function loadAdminSummary() {
                     : (parseInt(d.total_assignments) > 0 ? Math.round(parseInt(d.completed_assignments) * 100 / parseInt(d.total_assignments)) : 100);
                   return `
                   <tr>
-                    <td><strong>${d.department_name}</strong></td>
-                    <td>${d.employee_count}</td>
-                    <td>${d.total_assignments}</td>
-                    <td><span style="color: var(--success); font-weight: 600;">${d.completed_assignments}</span></td>
-                    <td><span style="color: ${parseInt(d.overdue_assignments) > 0 ? 'var(--danger)' : 'var(--text-muted)'}; font-weight: 600;">${d.overdue_assignments}</span></td>
-                    <td>
+                    <td data-label="Department"><strong>${d.department_name}</strong></td>
+                    <td data-label="Employees">${d.employee_count}</td>
+                    <td data-label="Total Assignments">${d.total_assignments}</td>
+                    <td data-label="Completed"><span style="color: var(--success); font-weight: 600;">${d.completed_assignments}</span></td>
+                    <td data-label="Overdue"><span style="color: ${parseInt(d.overdue_assignments) > 0 ? 'var(--danger)' : 'var(--text-muted)'}; font-weight: 600;">${d.overdue_assignments}</span></td>
+                    <td data-label="Compliance Rate">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <span>${compPercent}%</span>
                         <div class="progress-bar-container" style="width: 80px; margin: 0;">

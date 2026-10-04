@@ -31,7 +31,7 @@ public class AdminController extends ApiSupport {
 				done = ((Number) m.get("completed_assignments")).longValue();
 		m.put("company_compliance_rate", total == 0 ? 100 : Math.round(done * 100.0 / total));
 		List<Map<String, Object>> rows = db.queryForList(
-				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN users u ON u.department_id=d.id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name");
+				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN user_departments ud ON ud.department_id=d.id LEFT JOIN users u ON u.id=ud.user_id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name");
 		List<Map<String, Object>> deptStats = new ArrayList<>();
 		for (Map<String, Object> row : rows) {
 			Map<String, Object> d = new LinkedHashMap<>(row);
@@ -46,7 +46,7 @@ public class AdminController extends ApiSupport {
 	@GetMapping("/employees")
 	public Map<String, Object> employees(@RequestParam(required = false) String role,
 			@RequestParam(required = false) String search) {
-		String sql = "SELECT u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name department_name,d.id department_id,COUNT(DISTINCT ca.id) total_assigned_courses,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_courses,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_courses FROM users u LEFT JOIN departments d ON d.id=u.department_id LEFT JOIN course_assignments ca ON ca.user_id=u.id WHERE u.role IN ('trainer','employee')";
+		String sql = "SELECT u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name department_name,d.id department_id,(SELECT string_agg(m.department_id::text,',' ORDER BY m.department_id) FROM user_departments m WHERE m.user_id=u.id) membership_ids,COUNT(DISTINCT ca.id) total_assigned_courses,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_courses,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_courses FROM users u LEFT JOIN departments d ON d.id=u.department_id LEFT JOIN course_assignments ca ON ca.user_id=u.id WHERE u.role IN ('trainer','employee')";
 		List<Object> p = new ArrayList<>();
 		if (role != null && List.of("trainer", "employee").contains(role)) {
 			sql += " AND u.role=?";
@@ -57,7 +57,19 @@ public class AdminController extends ApiSupport {
 			for (int i = 0; i < 3; i++)
 				p.add("%" + search + "%");
 		}
-		return ok("employees", db.queryForList(sql + " GROUP BY u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name,d.id ORDER BY u.full_name", p.toArray()));
+		List<Map<String, Object>> rows = db.queryForList(sql + " GROUP BY u.id,u.employee_id,u.full_name,u.email,u.role,u.designation,u.is_active,u.password_setup_required,u.created_at,d.name,d.id ORDER BY u.full_name", p.toArray());
+		for (Map<String, Object> r : rows) {
+			Object ids = r.remove("membership_ids");
+			List<Map<String, Object>> depts = new ArrayList<>();
+			if (ids != null && !ids.toString().isBlank())
+				for (String id : ids.toString().split(",")) {
+					Map<String, Object> m = new LinkedHashMap<>();
+					m.put("id", Long.parseLong(id));
+					depts.add(m);
+				}
+			r.put("departments", depts);
+		}
+		return ok("employees", rows);
 	}
 
 	@PostMapping("/users")
@@ -66,14 +78,12 @@ public class AdminController extends ApiSupport {
 		if (b.get("full_name") == null || b.get("email") == null)
 			return ResponseEntity.badRequest()
 					.body(Map.of("success", false, "message", "full_name and email are required."));
-		String email = b.get("email").toString().trim().toLowerCase(),
-				role = String.valueOf(b.getOrDefault("role", "employee"));
+		String email = b.get("email").toString().trim().toLowerCase();
+		// Role is derived from department management; every new account starts as an employee.
+		String role = "employee";
 		if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
 			return ResponseEntity.badRequest()
 					.body(Map.of("success", false, "message", "A valid email address is required."));
-		if (!List.of("trainer", "employee").contains(role))
-			return ResponseEntity.badRequest().body(
-					Map.of("success", false, "message", "Only trainer and employee accounts can be created here."));
 		if (!db.queryForList("SELECT id FROM users WHERE LOWER(email)=LOWER(?)", email).isEmpty())
 			return ResponseEntity.status(409)
 					.body(Map.of("success", false, "message", "An account with this email already exists."));
@@ -88,26 +98,82 @@ public class AdminController extends ApiSupport {
 				"INSERT INTO users(employee_id,full_name,email,password_hash,role,department_id,designation,password_setup_required) VALUES(?,?,?,?,?,?,?,TRUE) RETURNING id,employee_id,full_name,email,role,department_id,designation,is_active,password_setup_required",
 				employeeId, b.get("full_name").toString().trim(), email,
 				passwords.encode(java.util.UUID.randomUUID().toString()), role, departmentId, b.get("designation"));
-		otp.sendAccountSetupLink(((Number) u.get("id")).longValue(), email, employeeId);
+		long newUserId = ((Number) u.get("id")).longValue();
+		if (departmentId != null)
+			db.update("INSERT INTO user_departments(user_id,department_id) VALUES(?,?) ON CONFLICT DO NOTHING", newUserId, departmentId);
+		otp.sendAccountSetupLink(newUserId, email, employeeId);
 		return ResponseEntity.status(201).body(Map.of("success", true, "message",
 				"User created. A one-time account setup link was emailed.", "user", u));
 	}
 
 	@PutMapping("/users/{id}")
+	@Transactional
 	public ResponseEntity<?> update(@PathVariable long id, @RequestBody Map<String, Object> b) {
-		String role = b.get("role") == null ? null : b.get("role").toString().trim().toLowerCase();
-		if (role != null && !List.of("trainer", "employee").contains(role))
-			return ResponseEntity.badRequest()
-					.body(Map.of("success", false, "message", "Role must be trainer or employee."));
-		Integer departmentId = departmentId(b);
-		if (b.containsKey("department_id") && b.get("department_id") != null && departmentId == null)
-			return ResponseEntity.badRequest()
-					.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
-		return db.update(
-				"UPDATE users SET role=COALESCE(?,role),department_id=COALESCE(?,department_id),designation=COALESCE(?,designation),is_active=COALESCE(?,is_active) WHERE id=?",
-				role, departmentId, b.get("designation"), b.get("is_active"), id) == 0
-						? ResponseEntity.status(404).body(Map.of("success", false, "message", "User not found."))
-						: ResponseEntity.ok(message("User updated successfully."));
+		if (db.queryForList("SELECT id FROM users WHERE id=?", id).isEmpty())
+			return ResponseEntity.status(404).body(Map.of("success", false, "message", "User not found."));
+
+		// Role is intentionally NOT editable here: it is derived from department management
+		// (trainer_departments) and only changes through the Departments tab.
+		List<String> sets = new ArrayList<>();
+		List<Object> params = new ArrayList<>();
+		if (b.get("designation") != null) { sets.add("designation=?"); params.add(b.get("designation")); }
+		if (b.containsKey("is_active") && b.get("is_active") != null) { sets.add("is_active=?"); params.add(b.get("is_active")); }
+
+		// Reconcile memberships + primary department.
+		if (b.containsKey("department_ids")) {
+			List<Integer> deptIds = new ArrayList<>();
+			Object arr = b.get("department_ids");
+			if (arr instanceof List<?> list) {
+				for (Object o : list) {
+					if (o == null || o.toString().isBlank()) continue;
+					try { deptIds.add(Integer.parseInt(o.toString().trim())); }
+					catch (NumberFormatException e) {
+						return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Department IDs must be numeric."));
+					}
+				}
+			}
+			Integer primary = null;
+			Object pObj = b.get("primary_department_id");
+			if (pObj != null && !pObj.toString().isBlank()) {
+				try { primary = Integer.parseInt(pObj.toString().trim()); }
+				catch (NumberFormatException e) {
+					return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Primary department must be numeric."));
+				}
+			}
+			if (primary != null && !deptIds.contains(primary)) deptIds.add(primary);
+			db.update("DELETE FROM user_departments WHERE user_id=?", id);
+			for (Integer d : deptIds)
+				db.update("INSERT INTO user_departments(user_id,department_id) VALUES(?,?) ON CONFLICT DO NOTHING", id, d);
+			// Management must be a subset of membership: drop trainer rights on any dept removed here, then recompute role.
+			if (deptIds.isEmpty()) {
+				db.update("DELETE FROM trainer_departments WHERE trainer_id=?", id);
+			} else {
+				String placeholders = String.join(",", Collections.nCopies(deptIds.size(), "?"));
+				List<Object> args = new ArrayList<>();
+				args.add(id);
+				args.addAll(deptIds);
+				db.update("DELETE FROM trainer_departments WHERE trainer_id=? AND department_id NOT IN (" + placeholders + ")", args.toArray());
+			}
+			db.update("UPDATE users SET role='employee' WHERE id=? AND role='trainer' AND NOT EXISTS(SELECT 1 FROM trainer_departments WHERE trainer_id=?)", id, id);
+			Integer newPrimary = primary != null ? primary : (deptIds.isEmpty() ? null : deptIds.get(0));
+			sets.add("department_id=?"); params.add(newPrimary);
+		} else if (b.containsKey("department_id")) {
+			// Additive: set/change the primary department and ensure membership exists.
+			Integer departmentId = departmentId(b);
+			if (b.get("department_id") != null && !b.get("department_id").toString().isBlank() && departmentId == null)
+				return ResponseEntity.badRequest()
+						.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
+			sets.add("department_id=?"); params.add(departmentId);
+			if (departmentId != null)
+				db.update("INSERT INTO user_departments(user_id,department_id) VALUES(?,?) ON CONFLICT DO NOTHING", id, departmentId);
+		}
+
+		if (!sets.isEmpty()) {
+			params.add(id);
+			db.update("UPDATE users SET " + String.join(",", sets) + " WHERE id=?", params.toArray());
+		}
+
+		return ResponseEntity.ok(message("User updated successfully."));
 	}
 
 	@PostMapping("/users/{id}/reset-password")

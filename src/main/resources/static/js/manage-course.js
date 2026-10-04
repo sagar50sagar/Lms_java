@@ -1,5 +1,6 @@
 import { API } from './api.js';
 import { requireRole } from './auth.js';
+import { UI } from './ui.js';
 
 let activeCourse = null;
 let currentQuiz = null;
@@ -28,7 +29,6 @@ async function loadExistingCourse(courseId) {
     document.getElementById('course-category').value = activeCourse.category || 'General';
     document.getElementById('course-duration').value = activeCourse.estimated_duration_hours || 1.0;
     document.getElementById('course-mandatory').checked = Boolean(activeCourse.is_mandatory);
-    document.getElementById('course-published').checked = Boolean(activeCourse.is_published);
 
     // Switch UI to "edit" mode
     const heading = document.getElementById('page-heading');
@@ -133,7 +133,7 @@ function renderQuestionsList(questions) {
     const correctOptions = (q.correct_option || '').split(',').map(s => s.trim().toUpperCase());
 
     return `
-      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px;">
+      <div style="background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-weight: 700; font-size: 0.95rem;">Q${idx + 1}.</span>
@@ -152,7 +152,7 @@ function renderQuestionsList(questions) {
           ${options.map(opt => {
             const isCorrect = correctOptions.includes(opt.id.toUpperCase());
             return `
-              <div style="padding: 6px 10px; border-radius: 6px; background: ${isCorrect ? '#dcfce7' : '#ffffff'}; border: 1px solid ${isCorrect ? '#86efac' : 'var(--border)'}; font-weight: ${isCorrect ? '700' : 'normal'}; color: ${isCorrect ? '#166534' : 'inherit'};">
+              <div style="padding: 6px 10px; border-radius: 6px; background: ${isCorrect ? '#dcfce7' : 'var(--bg-card)'}; border: 1px solid ${isCorrect ? '#86efac' : 'var(--border)'}; font-weight: ${isCorrect ? '700' : 'normal'}; color: ${isCorrect ? '#166534' : 'inherit'};">
                 ${isCorrect ? '✓ ' : ''}<strong>${opt.id}.</strong> ${opt.text}
               </div>
             `;
@@ -168,7 +168,7 @@ function renderQuestionsList(questions) {
   container.querySelectorAll('.delete-q-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const qid = btn.dataset.qid;
-      if (!confirm('Are you sure you want to delete this test question?')) return;
+      if (!(await UI.confirm({ title: 'Delete Question?', message: 'Are you sure you want to delete this test question?', type: 'danger', confirmText: 'Delete' }))) return;
       try {
         await API.delete(`/quizzes/questions/${qid}`);
         API.showToast('Question deleted!', 'success');
@@ -243,7 +243,7 @@ function renderCurriculumTree() {
     <h3 style="font-size: 1.05rem; margin-bottom: 12px; color: var(--secondary);">Curriculum Overview</h3>
     <div style="display: flex; flex-direction: column; gap: 8px;">
       ${chapters.map(ch => `
-        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px;">
+        <div style="background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px;">
           <div style="font-weight: 700; font-size: 0.9rem;">${ch.title}</div>
           <ul style="margin-left: 20px; font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
             ${(ch.lessons || []).map(l => `
@@ -282,12 +282,11 @@ function setupEventListeners() {
     const category = document.getElementById('course-category').value;
     const estimated_duration_hours = parseFloat(document.getElementById('course-duration').value) || 1.0;
     const is_mandatory = document.getElementById('course-mandatory').checked;
-    const is_published = document.getElementById('course-published').checked;
 
     try {
       if (activeCourse) {
         const res = await API.put(`/courses/${activeCourse.id}`, {
-          title, description, category, estimated_duration_hours, is_mandatory, is_published
+          title, description, category, estimated_duration_hours, is_mandatory
         });
         activeCourse = { ...activeCourse, ...res.course };
         const heading = document.getElementById('page-heading');
@@ -295,7 +294,7 @@ function setupEventListeners() {
         API.showToast('Course updated successfully!', 'success');
       } else {
         const res = await API.post('/courses', {
-          title, description, category, estimated_duration_hours, is_mandatory, is_published
+          title, description, category, estimated_duration_hours, is_mandatory
         });
         activeCourse = res.course;
         activeCourse.chapters = [];
@@ -469,6 +468,18 @@ function setupEventListeners() {
     } else {
       payload.user_id = document.getElementById('inline-emp-select').value;
     }
+    const sel = (target === 'department' ? document.getElementById('inline-dept-select') : document.getElementById('inline-emp-select')).selectedOptions[0];
+    const targetLabel = sel ? sel.textContent.trim() : 'the selected target';
+    const items = [target === 'department'
+      ? 'Everyone in that department gets it on their dashboard.'
+      : 'This employee gets it on their dashboard.'];
+    if (activeCourse.is_published === false) items.push('This course is a Draft and will be published so the assignees can open it.');
+    if (payload.due_date) items.push(`Due by ${payload.due_date}.`);
+    if (!(await UI.confirm({
+      title: 'Assign Course?',
+      message: `Assign “${activeCourse.title}” to ${targetLabel}?`,
+      items, type: 'info', confirmText: 'Assign Course'
+    }))) return;
     try {
       const res = await API.post('/assignments', payload);
       API.showToast(res.message, 'success');

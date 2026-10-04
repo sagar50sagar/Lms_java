@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>if(!localStorage.getItem('lms_token'))location.replace('/login.html');</script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Corporate Employee Training & Compliance LMS</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -18,7 +19,7 @@
       <p>Upskill your professional capabilities, satisfy mandatory security and ethics compliance requirements, and track your career growth milestones.</p>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <a href="/login.html" class="btn btn-primary btn-lg">Access Employee Portal</a>
-        <a href="/courses.html" class="btn btn-secondary btn-lg" style="color: #0f172a;">Explore Training Catalog</a>
+        <a href="/courses.html" class="btn btn-secondary btn-lg">Explore Training Catalog</a>
       </div>
     </div>
   </header>
@@ -67,11 +68,6 @@
     </div>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <p>© 2026 Corporate Learning & Development. Confidential & Internal Use Only.</p>
-    </div>
-  </footer>
 
   <script type="module" src="/js/auth.js"></script>
   <script type="module">
@@ -118,5 +114,7 @@
 
     loadFeaturedCourses();
   </script>
+  <script type="module" src="/js/theme.js"></script>
+  <script type="module" src="/js/footer.js"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Course Details - Enterprise LMS</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -17,11 +17,6 @@
     </div>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <p>© 2026 Corporate Learning & Development. Confidential & Internal Use Only.</p>
-    </div>
-  </footer>
 
   <script type="module" src="/js/auth.js"></script>
   <script type="module">
@@ -53,7 +48,8 @@
             actionButtonHtml = `
               <div style="display: flex; gap: 10px;">
                 <a href="/course-player.html?id=${c.id}" class="btn btn-secondary btn-lg">Review Course</a>
-                ${p.certificate ? `<a href="/certificate-view.html?code=${p.certificate.certificate_code}" class="btn btn-primary btn-lg" target="_blank">View Certificate 📜</a>` : ''}
+                ${p.certificate ? `<a href="/certificate-view.html?code=${p.certificate.certificate_code}" class="btn btn-secondary btn-lg" target="_blank">View Certificate 📜</a>
+                <button type="button" class="btn btn-primary btn-lg cert-pdf-btn" data-code="${p.certificate.certificate_code}">Download PDF ⬇️</button>` : ''}
               </div>
             `;
           } else {
@@ -73,7 +69,7 @@
                 <span class="badge ${c.is_mandatory ? 'badge-mandatory' : 'badge-optional'}">
                   ${c.is_mandatory ? '⚠️ Mandatory Corporate Compliance' : 'Elective Course'}
                 </span>
-                <span class="badge" style="background: #f1f5f9; color: var(--text-muted);">${c.category}</span>
+                <span class="badge" style="background: var(--bg-page); color: var(--text-muted);">${c.category}</span>
               </div>
               <h1 style="font-size: 2.2rem; color: var(--secondary); margin-bottom: 12px;">${c.title}</h1>
               <p style="font-size: 1.05rem; color: var(--text-muted); max-width: 800px; margin-bottom: 20px;">
@@ -112,13 +108,13 @@
               <div style="display: flex; flex-direction: column; gap: 14px;">
                 ${c.chapters.map((chapter, idx) => `
                   <div style="border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
-                    <div style="background: #f8fafc; padding: 14px 18px; font-weight: 700; color: var(--secondary); display: flex; justify-content: space-between;">
+                    <div style="background: var(--bg-page); padding: 14px 18px; font-weight: 700; color: var(--secondary); display: flex; justify-content: space-between;">
                       <span>${chapter.title}</span>
                       <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">${chapter.lessons.length} lessons</span>
                     </div>
                     <div style="padding: 10px 18px;">
                       ${chapter.lessons.map(lesson => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border);">
                           <div style="display: flex; align-items: center; gap: 10px;">
                             <span>${lesson.content_type === 'video' ? '🎥' : '📄'}</span>
                             <span style="font-size: 0.95rem;">${lesson.title}</span>
@@ -136,9 +132,9 @@
 
               <!-- Knowledge Check / Quiz Notification -->
               ${c.quizzes && c.quizzes.length > 0 ? `
-                <div style="margin-top: 24px; padding: 16px; background: var(--info-bg); border-radius: var(--radius); border: 1px solid #bae6fd;">
-                  <h4 style="color: #0369a1; margin-bottom: 4px;">📝 Knowledge Check Required for Certificate</h4>
-                  <p style="color: #0284c7; font-size: 0.88rem;">
+                <div style="margin-top: 24px; padding: 16px; background: var(--info-bg); border-radius: var(--radius); border: 1px solid var(--info);">
+                  <h4 style="color: var(--info); margin-bottom: 4px;">📝 Knowledge Check Required for Certificate</h4>
+                  <p style="color: var(--text-main); font-size: 0.88rem;">
                     Pass the final assessment quiz with at least <strong>${c.quizzes[0].passing_score}%</strong> to receive your verified company Certificate of Completion.
                   </p>
                 </div>
@@ -171,5 +167,7 @@
 
     document.addEventListener('DOMContentLoaded', loadCourseDetail);
   </script>
+  <script type="module" src="/js/theme.js"></script>
+  <script type="module" src="/js/footer.js"></script>
 </body>
 </html>

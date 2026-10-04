@@ -29,7 +29,7 @@ public class CourseController extends ApiSupport {
 		} else {
 			sql = "SELECT c.*,u.full_name creator_name,COUNT(DISTINCT l.id) total_lessons,COALESCE(SUM(l.duration_mins),0) total_duration_mins,COUNT(DISTINCT ca.id) enrolled_count FROM courses c LEFT JOIN users u ON u.id=c.created_by LEFT JOIN lessons l ON l.course_id=c.id LEFT JOIN course_assignments ca ON ca.course_id=c.id WHERE 1=1";
 			if (!isAdminOrTrainer) {
-				sql += " AND c.is_published=TRUE";
+				sql += " AND 1=0"; // Anonymous visitors cannot browse courses; visibility is limited to assigned employees and staff.
 			}
 		}
 		if (category != null && !category.isBlank()) {
@@ -54,6 +54,15 @@ public class CourseController extends ApiSupport {
 		if (courses.isEmpty())
 			return ResponseEntity.status(404).body(Map.of("success", false, "message", "Training course not found."));
 		Map<String, Object> course = new LinkedHashMap<>(courses.getFirst());
+		if (auth == null)
+			return ResponseEntity.status(401).body(Map.of("success", false, "message", "Please sign in to view this course."));
+		long currentUid = userId(auth);
+		Object createdBy = val(course, "created_by");
+		boolean isCreator = createdBy != null && ((Number) createdBy).longValue() == currentUid;
+		boolean canView = "admin".equals(role(auth)) || isCreator
+				|| !db.queryForList("SELECT 1 FROM course_assignments WHERE course_id=? AND user_id=?", id, currentUid).isEmpty();
+		if (!canView)
+			return ResponseEntity.status(403).body(Map.of("success", false, "message", "This course is private. It is visible only to assigned employees and administrators."));
 		List<Map<String, Object>> chapters = db
 				.queryForList("SELECT * FROM chapters WHERE course_id=? ORDER BY sequence_order,id", id);
 		List<Map<String, Object>> lessons = db.queryForList(
@@ -130,7 +139,7 @@ public class CourseController extends ApiSupport {
 			return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Course title is required."));
 		String slug = title.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "") + "-"
 				+ (1000 + new Random().nextInt(9000));
-		boolean isPub = b.containsKey("is_published") ? bool(b, "is_published") : true;
+		boolean isPub = false; // New courses always start as Draft; they publish automatically when assigned to an employee.
 		Map<String, Object> c = db.queryForMap(
 				"INSERT INTO courses(title,slug,description,category,is_mandatory,estimated_duration_hours,created_by,is_published) VALUES(?,?,?,?,?,?,?,?) RETURNING *",
 				title, slug, b.getOrDefault("description", ""), b.getOrDefault("category", "General"),
@@ -143,9 +152,9 @@ public class CourseController extends ApiSupport {
 	@PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
 	public ResponseEntity<?> update(@PathVariable long id, @RequestBody Map<String, Object> b) {
 		int count = db.update(
-				"UPDATE courses SET title=COALESCE(?,title),description=COALESCE(?,description),category=COALESCE(?,category),is_mandatory=COALESCE(?,is_mandatory),estimated_duration_hours=COALESCE(?,estimated_duration_hours),is_published=COALESCE(?,is_published),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+				"UPDATE courses SET title=COALESCE(?,title),description=COALESCE(?,description),category=COALESCE(?,category),is_mandatory=COALESCE(?,is_mandatory),estimated_duration_hours=COALESCE(?,estimated_duration_hours),updated_at=CURRENT_TIMESTAMP WHERE id=?",
 				b.get("title"), b.get("description"), b.get("category"), b.get("is_mandatory"),
-				b.get("estimated_duration_hours"), b.get("is_published"), id);
+				b.get("estimated_duration_hours"), id);
 		if (count == 0)
 			return ResponseEntity.status(404).body(Map.of("success", false, "message", "Course not found."));
 		Map<String, Object> updatedCourse = db.queryForMap("SELECT * FROM courses WHERE id=?", id);

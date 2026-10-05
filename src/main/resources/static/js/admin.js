@@ -276,16 +276,18 @@ function renderDepartments() {
   }
   listEl.innerHTML = `
       <div class="table-responsive"><table class="table">
-        <thead><tr><th>Department</th><th>Description</th><th>Employees</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Department</th><th>Description</th><th>Employees</th><th style="text-align:right">Actions</th></tr></thead>
         <tbody>${depts.map(d => `
           <tr>
             <td data-label="Department"><strong>${esc(d.name)}</strong></td>
             <td data-label="Description" style="color:var(--text-muted);font-size:0.85rem;">${d.description || '-'}</td>
             <td data-label="Employees">${d.employee_count}</td>
             <td data-label="Actions" class="cell-actions">
-              <button class="btn btn-secondary btn-sm add-member-btn" data-id="${d.id}" data-name="${esc(d.name)}">+ Employee</button>
-              <button class="btn btn-secondary btn-sm assign-trainer-btn" data-id="${d.id}" data-name="${esc(d.name)}">+ Trainer</button>
-              <button class="btn btn-secondary btn-sm delete-dept-btn" data-id="${d.id}" style="color:var(--danger);">Delete</button>
+              <div class="actions">
+                <button class="btn btn-secondary btn-sm add-member-btn" data-id="${d.id}" data-name="${esc(d.name)}">+ Employee</button>
+                <button class="btn btn-secondary btn-sm assign-trainer-btn" data-id="${d.id}" data-name="${esc(d.name)}">+ Trainer</button>
+                <button class="btn btn-secondary btn-sm delete-dept-btn" data-id="${d.id}" style="color:var(--danger);">Delete</button>
+              </div>
             </td>
           </tr>
         `).join('')}</tbody>
@@ -373,13 +375,13 @@ async function loadTrainerDeptAssignments() {
     }
     el.innerHTML = `
       <div class="table-responsive"><table class="table">
-        <thead><tr><th>Trainer</th><th>Email</th><th>Department</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Trainer</th><th>Email</th><th>Department</th><th style="text-align:right">Actions</th></tr></thead>
         <tbody>${assignments.map(a => `
           <tr>
             <td data-label="Trainer"><strong>${esc(a.trainer_name)}</strong></td>
             <td data-label="Email" style="color:var(--text-muted);font-size:0.85rem;">${a.trainer_email}</td>
             <td data-label="Department">${esc(a.department_name)}</td>
-            <td data-label="Actions" class="cell-actions"><button class="btn btn-secondary btn-sm remove-trainer-btn" data-dept="${a.department_id}" data-trainer="${a.trainer_id}" style="color:var(--danger);">Remove</button></td>
+            <td data-label="Actions" class="cell-actions"><div class="actions"><button class="btn btn-secondary btn-sm remove-trainer-btn" data-dept="${a.department_id}" data-trainer="${a.trainer_id}" style="color:var(--danger);">Remove</button></div></td>
           </tr>
         `).join('')}</tbody>
       </table></div>
@@ -565,9 +567,11 @@ function renderRoster() {
         <td data-label="Completed"><span style="color:var(--success);font-weight:600;">${emp.completed_courses}</span></td>
         <td data-label="Overdue"><span style="color:${parseInt(emp.overdue_courses)>0?'var(--danger)':'var(--text-muted)'};font-weight:600;">${emp.overdue_courses}</span></td>
         <td data-label="Actions" class="cell-actions">
-          ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Reset Password</button>`}
-          <button class="btn btn-secondary btn-sm toggle-active-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" data-active="${emp.is_active ? '1' : '0'}">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
-          <button class="btn btn-secondary btn-sm delete-user-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" style="color:var(--danger);">Delete</button>
+          <div class="actions">
+            ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Reset Password</button>`}
+            <button class="btn btn-secondary btn-sm toggle-active-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" data-active="${emp.is_active ? '1' : '0'}">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
+            <button class="btn btn-secondary btn-sm delete-user-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" style="color:var(--danger);">Delete</button>
+          </div>
         </td>
       </tr>
     `).join('');
@@ -653,14 +657,14 @@ function renderCourses() {
   }
   listEl.innerHTML = `
       <div class="table-responsive"><table class="table">
-        <thead><tr><th>Title</th><th>Category</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Title</th><th>Category</th><th>Duration</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
         <tbody>${courses.map(c => `
           <tr>
             <td data-label="Title"><strong>${esc(c.title)}</strong>${c.is_mandatory?'<span class="badge badge-mandatory" style="margin-left:6px;font-size:0.7rem;">Mandatory</span>':''}</td>
             <td data-label="Category">${esc(c.category)}</td>
             <td data-label="Duration">${c.estimated_duration_hours||1} hrs</td>
             <td data-label="Status"><span style="color:${c.is_published?'var(--success)':'var(--text-muted)'};font-weight:600;font-size:0.85rem;">${c.is_published?'✅ Published':'⬜ Draft'}</span></td>
-            <td data-label="Actions" class="cell-actions"><a href="/manage-course.html?id=${c.id}" class="btn btn-secondary btn-sm">✏️ Edit</a><a href="/course-detail.html?id=${c.id}" class="btn btn-secondary btn-sm">👁 View</a><button class="btn btn-secondary btn-sm delete-course-btn" data-id="${c.id}" data-title="${esc(c.title)}" style="color:var(--danger);">Delete</button></td>
+            <td data-label="Actions" class="cell-actions"><div class="actions"><a href="/manage-course.html?id=${c.id}" class="btn btn-secondary btn-sm">✏️ Edit</a><a href="/course-detail.html?id=${c.id}" class="btn btn-secondary btn-sm">👁 View</a><button class="btn btn-secondary btn-sm delete-course-btn" data-id="${c.id}" data-title="${esc(c.title)}" style="color:var(--danger);">Delete</button></div></td>
           </tr>
         `).join('')}</tbody>
       </table></div>

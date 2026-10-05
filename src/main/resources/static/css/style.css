@@ -397,11 +397,17 @@ tr.row-inactive > td { opacity: 0.62; }
   font-size: 0.72rem;
   letter-spacing: 0.05em;
 }
-.cell-actions {
+/* The td must stay a real table cell — flexing a td collapses its height and floats its bottom
+   border above the row separator. Anchor the buttons right so shared buttons line up row to row. */
+.table td.cell-actions {
+  vertical-align: middle;
+}
+.cell-actions .actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
   flex-wrap: wrap;
+  gap: 6px;
 }
 
 /* Mobile Horizontal Scrollable Filter Chips */
@@ -801,6 +807,9 @@ input[type="radio"] {
     display: block;
     text-align: left;
     padding-top: 10px;
+  }
+  .table td.cell-actions .actions {
+    display: block;
   }
   .table td.cell-actions .btn {
     display: flex;

@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * (user_departments membership table, trainer_departments management rights,
  * users.department_id primary/home). ~60 assertions across every touched endpoint.
  */
-@SpringBootTest
+@SpringBootTest(properties = "app.mail.outbox.enabled=false")
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DepartmentMembershipIntegrationTest {
@@ -36,7 +36,10 @@ class DepartmentMembershipIntegrationTest {
   long ts = System.currentTimeMillis();
   long adminId, deptA, deptB, deptC, e1, e2, m1, t1, courseId;
 
-  String tok(long userId) { return "Bearer " + jwt.createToken(userId, "u" + userId + "@test.local", "x"); }
+  String tok(long userId) {
+    int version = db.queryForObject("SELECT token_version FROM users WHERE id=?", Integer.class, userId);
+    return "Bearer " + jwt.createToken(userId, "u" + userId + "@test.local", "x", version);
+  }
   String adminTok() { return tok(adminId); }
 
   Set<Long> memberships(long userId) {
@@ -171,16 +174,17 @@ class DepartmentMembershipIntegrationTest {
   @Test @Order(8) void deptAllCountsViaMembership() throws Exception {
     MvcResult r = mockMvc.perform(get("/api/departments").header("Authorization", adminTok())).andExpect(status().isOk()).andReturn();
     JsonNode arr = om.readTree(r.getResponse().getContentAsString()).get("departments");
-    // employee_count counts every active member (incl. trainers), sourced from user_departments.
-    assertEquals(3, findBy(arr, deptA).get("employee_count").asInt(), "deptA = E1, M1, T1");
+    // employee_count is the bulk-assign target set: active role='employee' members via user_departments.
+    // T1 manages deptA and is a member, but assigning a course to a trainer is not what this number promises.
+    assertEquals(2, findBy(arr, deptA).get("employee_count").asInt(), "deptA = E1, M1 (T1 is a trainer)");
   }
 
   @Test @Order(9) void deptAllEmployeeCountExact() throws Exception {
-    // deptA active members: E1, M1, T1 = 3; deptB: M1, T1 = 2 (T1 manages B so is also a member); deptC: 0
+    // deptA employees: E1, M1 = 2; deptB: M1 = 1 (T1 manages B, so is a member but not an employee); deptC: 0
     MvcResult r = mockMvc.perform(get("/api/departments").header("Authorization", adminTok())).andExpect(status().isOk()).andReturn();
     JsonNode arr = om.readTree(r.getResponse().getContentAsString()).get("departments");
-    assertEquals(3, findBy(arr, deptA).get("employee_count").asInt());
-    assertEquals(2, findBy(arr, deptB).get("employee_count").asInt());
+    assertEquals(2, findBy(arr, deptA).get("employee_count").asInt());
+    assertEquals(1, findBy(arr, deptB).get("employee_count").asInt());
     assertEquals(0, findBy(arr, deptC).get("employee_count").asInt());
   }
 
@@ -317,7 +321,7 @@ class DepartmentMembershipIntegrationTest {
     MvcResult r = mockMvc.perform(get("/api/admin/compliance").header("Authorization", adminTok())).andExpect(status().isOk()).andReturn();
     JsonNode stats = om.readTree(r.getResponse().getContentAsString()).get("department_stats");
     JsonNode a = findByKey(stats, "department_id", deptA);
-    assertEquals(3, a.get("employee_count").asInt(), "deptA members E1,M1,T1");
+    assertEquals(2, a.get("employee_count").asInt(), "deptA employees E1,M1 (T1 manages, not counted)");
     assertTrue(a.get("total_assignments").asInt() >= 2, "assignments for A's employees counted");
   }
 

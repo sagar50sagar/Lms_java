@@ -1,3 +1,4 @@
+import { esc } from './escape.js';
 import { API } from './api.js';
 
 let activeCategory = '';
@@ -33,10 +34,10 @@ async function fetchAndRenderCourses() {
             <span class="badge ${course.is_mandatory ? 'badge-mandatory' : 'badge-optional'}">
               ${course.is_mandatory ? '⚠️ Mandatory' : 'Elective'}
             </span>
-            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${course.category}</span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${esc(course.category)}</span>
           </div>
-          <h3 style="font-size: 1.15rem; margin-bottom: 8px;">${course.title}</h3>
-          <p style="color: var(--text-muted); font-size: 0.88rem; flex: 1; margin-bottom: 16px;">${course.description}</p>
+          <h3 style="font-size: 1.15rem; margin-bottom: 8px;">${esc(course.title)}</h3>
+          <p style="color: var(--text-muted); font-size: 0.88rem; flex: 1; margin-bottom: 16px;">${esc(course.description)}</p>
           <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px; font-size: 0.82rem; color: var(--text-muted);">
             <span>⏱ ${course.estimated_duration_hours || 1.0} hrs</span>
             <span>📚 ${course.total_lessons || 0} Lessons</span>
@@ -50,7 +51,7 @@ async function fetchAndRenderCourses() {
       `;
     }).join('');
   } catch (err) {
-    container.innerHTML = `<p style="color: var(--danger); text-align: center; grid-column: 1 / -1;">Error: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: var(--danger); text-align: center; grid-column: 1 / -1;">Error: ${esc(err.message)}</p>`;
   }
 }
 

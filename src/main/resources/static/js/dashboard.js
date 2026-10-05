@@ -1,3 +1,4 @@
+import { esc, formatDate } from './escape.js';
 import { API } from './api.js';
 import { requireAuth } from './auth.js';
 
@@ -54,13 +55,14 @@ async function loadLearnerAssignments(user) {
     const completed = assignments.filter(a => a.compliance_status === 'completed').length;
     const inProgress = assignments.filter(a => a.compliance_status === 'in_progress').length;
     const overdue = assignments.filter(a => a.compliance_status === 'overdue').length;
+    const overdueMandatory = assignments.filter(a => a.compliance_status === 'overdue' && a.is_mandatory).length;
 
     // Overdue banner alert
-    if (overdue > 0 && overdueBanner) {
+    if (overdueMandatory > 0 && overdueBanner) {
       overdueBanner.innerHTML = `
         <div class="overdue-alert-banner">
           <div>
-            <strong>⚠️ Immediate Action Required:</strong> You have <strong>${overdue}</strong> overdue mandatory compliance course(s). Please complete them immediately.
+            <strong>⚠️ Immediate Action Required:</strong> You have <strong>${overdueMandatory}</strong> overdue mandatory compliance course(s). Please complete them immediately.
           </div>
           <a href="#assigned-courses-grid" class="btn btn-danger btn-sm">View Overdue</a>
         </div>
@@ -93,8 +95,7 @@ async function loadLearnerAssignments(user) {
       container.innerHTML = `
         <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
           <h3>No Courses Currently Assigned</h3>
-          <p style="color: var(--text-muted); margin-bottom: 20px;">You are up to date! Explore our course catalog to self-enroll in professional upskilling modules.</p>
-          <a href="/courses.html" class="btn btn-primary btn-sm">Explore Courses</a>
+          <p style="color: var(--text-muted);">Nothing is due from you right now. A trainer or administrator will assign your next course here when it is scheduled.</p>
         </div>
       `;
       return;
@@ -105,7 +106,7 @@ async function loadLearnerAssignments(user) {
       let dueDateHtml = '';
 
       if (a.due_date) {
-        const formattedDate = new Date(a.due_date).toLocaleDateString();
+        const formattedDate = formatDate(a.due_date);
         dueDateHtml = `
           <div style="font-size: 0.82rem; margin-top: 6px; color: ${a.is_overdue ? 'var(--danger)' : 'var(--text-muted)'}; font-weight: ${a.is_overdue ? '700' : '500'};">
             📅 Deadline: ${formattedDate} ${a.is_overdue ? '(OVERDUE)' : ''}
@@ -122,7 +123,7 @@ async function loadLearnerAssignments(user) {
             ${statusBadge}
           </div>
 
-          <h3 style="font-size: 1.15rem; margin-bottom: 6px;">${a.course_title}</h3>
+          <h3 style="font-size: 1.15rem; margin-bottom: 6px;">${esc(a.course_title)}</h3>
           <p style="color: var(--text-muted); font-size: 0.85rem; flex: 1; margin-bottom: 12px;">
             ${a.course_description}
           </p>
@@ -149,7 +150,7 @@ async function loadLearnerAssignments(user) {
       `;
     }).join('');
   } catch (err) {
-    container.innerHTML = `<p style="color: var(--danger); grid-column: 1 / -1;">Failed to load assignments: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: var(--danger); grid-column: 1 / -1;">Failed to load assignments: ${esc(err.message)}</p>`;
   }
 }
 
@@ -168,15 +169,15 @@ async function loadCertificates() {
           <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--success);">
             Verified Certificate
           </div>
-          <h4 style="font-size: 1.05rem; margin: 6px 0;">${c.course_title}</h4>
-          <p style="font-size: 0.82rem; color: var(--text-muted);">Code: ${c.certificate_code}</p>
+          <h4 style="font-size: 1.05rem; margin: 6px 0;">${esc(c.course_title)}</h4>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Code: ${esc(c.certificate_code)}</p>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
             Issued: ${new Date(c.issued_at).toLocaleDateString()}
           </p>
-          <a href="/certificate-view.html?code=${c.certificate_code}" target="_blank" class="btn btn-secondary btn-sm btn-block">
+          <a href="/certificate-view.html?code=${esc(c.certificate_code)}" target="_blank" class="btn btn-secondary btn-sm btn-block">
             View Certificate 📜
           </a>
-          <button type="button" class="btn btn-primary btn-sm btn-block cert-pdf-btn" data-code="${c.certificate_code}" style="margin-top:8px">
+          <button type="button" class="btn btn-primary btn-sm btn-block cert-pdf-btn" data-code="${esc(c.certificate_code)}" style="margin-top:8px">
             Download PDF ⬇️
           </button>
         </div>
@@ -242,7 +243,7 @@ async function loadAdminSummary() {
                     : (parseInt(d.total_assignments) > 0 ? Math.round(parseInt(d.completed_assignments) * 100 / parseInt(d.total_assignments)) : 100);
                   return `
                   <tr>
-                    <td data-label="Department"><strong>${d.department_name}</strong></td>
+                    <td data-label="Department"><strong>${esc(d.department_name)}</strong></td>
                     <td data-label="Employees">${d.employee_count}</td>
                     <td data-label="Total Assignments">${d.total_assignments}</td>
                     <td data-label="Completed"><span style="color: var(--success); font-weight: 600;">${d.completed_assignments}</span></td>

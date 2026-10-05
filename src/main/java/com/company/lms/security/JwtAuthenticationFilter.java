@@ -19,10 +19,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private final JwtService jwt; private final JdbcTemplate db;
   public JwtAuthenticationFilter(JwtService jwt, JdbcTemplate db) { this.jwt=jwt; this.db=db; }
   @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-    String header=request.getHeader("Authorization"); String token=header != null && header.startsWith("Bearer ") ? header.substring(7) : request.getParameter("token");
+    String header=request.getHeader("Authorization"); String token=header != null && header.startsWith("Bearer ") ? header.substring(7) : null;
     if (token != null && SecurityContextHolder.getContext().getAuthentication()==null) try {
-      Map<String,Object> user=db.queryForMap("SELECT id, employee_id, full_name, email, role, department_id, designation, is_active FROM users WHERE id=?", jwt.userId(token));
-      if (Boolean.TRUE.equals(user.get("is_active"))) {
+      JwtService.Principal principal=jwt.parse(token);
+      Map<String,Object> user=new java.util.LinkedHashMap<>(db.queryForMap("SELECT id, employee_id, full_name, email, role, department_id, designation, is_active, token_version FROM users WHERE id=?", principal.userId()));
+      int issuedVersion=((Number)user.remove("token_version")).intValue();
+      // A password change or reset raises the stored version, which invalidates every older token.
+      if (Boolean.TRUE.equals(user.get("is_active")) && issuedVersion==principal.tokenVersion()) {
         String role=(String)user.get("role"); var auth=new UsernamePasswordAuthenticationToken(user, null, List.of(new SimpleGrantedAuthority("ROLE_"+role.toUpperCase())));
         SecurityContextHolder.getContext().setAuthentication(auth);
       }

@@ -27,11 +27,32 @@ spring:
     properties:
       mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
       mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:true}
+      # Jakarta Mail waits forever by default. A dead or throttled provider must not park a thread.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 server:
   port: ${PORT:8080}
+  # Set to native or framework only behind a reverse proxy you control, together with
+  # RATE_LIMIT_TRUST_PROXY=true, so client IPs and generated links survive the hop.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
   error:
     include-message: never
+  # Uploads are not a feature; a large body is only a way to exhaust request buffers.
+  tomcat:
+    max-http-form-post-size: 1MB
+    max-swallow-size: 2MB
 app:
+  # Set to production to enable the startup guard that rejects development secrets and demo seeding.
+  environment: ${APP_ENV:development}
+  rate-limit:
+    # Enable only when a reverse proxy you control sets X-Forwarded-For; otherwise client IPs are spoofable.
+    trust-forwarded-for: ${RATE_LIMIT_TRUST_PROXY:false}
+    # Wrong-password budget per account (locks that account for 5 minutes) and per client IP (15 minutes).
+    # A correct password always logs in, so these ceilings only ever slow down a guesser. The IP budget
+    # counts requests rather than people, and a whole office shares one address, so it stays generous.
+    login-attempts: ${RATE_LIMIT_LOGIN_ATTEMPTS:10}
+    login-ip-attempts: ${RATE_LIMIT_LOGIN_IP_ATTEMPTS:200}
   frontend-url: ${FRONTEND_URL:http://localhost:8080}
   initial-admin:
     email: ${INITIAL_ADMIN_EMAIL:}
@@ -39,6 +60,17 @@ app:
     full-name: ${INITIAL_ADMIN_FULL_NAME:Initial Administrator}
   mail:
     from: ${MAIL_FROM:no-reply@company.local}
+    # smtp | postmark | resend. The HTTP providers work on hosts that block outbound SMTP ports.
+    provider: ${MAIL_PROVIDER:smtp}
+    api-key: ${MAIL_API_KEY:}
+    # Only set this to point at a region-specific or self-hosted endpoint.
+    api-url: ${MAIL_API_URL:}
+    outbox:
+      enabled: ${MAIL_OUTBOX_ENABLED:true}
+      poll-ms: ${MAIL_OUTBOX_POLL_MS:2000}
+      batch-size: 10
+      max-attempts: 5
+      retry-base-seconds: 60
   # Set to false in production. It only inserts data into an empty database.
   demo-data: ${DEMO_DATA:true}
   jwt:

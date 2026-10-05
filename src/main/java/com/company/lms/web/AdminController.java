@@ -1,9 +1,11 @@
 package com.company.lms.web;
 
+import com.company.lms.service.DepartmentEnrollmentService;
 import com.company.lms.service.EmailOtpService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -16,22 +18,27 @@ public class AdminController extends ApiSupport {
 	private final JdbcTemplate db;
 	private final PasswordEncoder passwords;
 	private final EmailOtpService otp;
+	private final DepartmentEnrollmentService departmentEnrollments;
 
-	public AdminController(JdbcTemplate db, PasswordEncoder passwords, EmailOtpService otp) {
+	public AdminController(JdbcTemplate db, PasswordEncoder passwords, EmailOtpService otp,
+			DepartmentEnrollmentService departmentEnrollments) {
 		this.db = db;
 		this.passwords = passwords;
 		this.otp = otp;
+		this.departmentEnrollments = departmentEnrollments;
 	}
 
 	@GetMapping("/compliance")
 	public Map<String, Object> compliance() {
+		// Only employees are compliance targets (see DepartmentEnrollmentService): an administrator or trainer who
+		// takes a course for their own interest must not move the company number, up or down.
 		Map<String, Object> m = new LinkedHashMap<>(db.queryForMap(
-				"SELECT (SELECT COUNT(*) FROM users WHERE role='employee' AND is_active) total_employees,(SELECT COUNT(*) FROM users WHERE role='trainer' AND is_active) total_trainers,(SELECT COUNT(*) FROM courses WHERE is_published) total_courses,(SELECT COUNT(*) FROM certificates) total_certificates,COUNT(*) total_assignments,COUNT(*) FILTER(WHERE completed_at IS NOT NULL) completed_assignments,COUNT(*) FILTER(WHERE due_date<CURRENT_DATE AND completed_at IS NULL) overdue_assignments FROM course_assignments"));
+				"SELECT (SELECT COUNT(*) FROM users WHERE role='employee' AND is_active) total_employees,(SELECT COUNT(*) FROM users WHERE role='trainer' AND is_active) total_trainers,(SELECT COUNT(*) FROM courses WHERE is_published) total_courses,(SELECT COUNT(*) FROM certificates ct JOIN users cu ON cu.id=ct.user_id AND cu.role='employee' AND cu.is_active) total_certificates,COUNT(*) total_assignments,COUNT(*) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(*) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM course_assignments ca JOIN users u ON u.id=ca.user_id AND u.role='employee' AND u.is_active"));
 		long total = ((Number) m.get("total_assignments")).longValue(),
 				done = ((Number) m.get("completed_assignments")).longValue();
 		m.put("company_compliance_rate", total == 0 ? 100 : Math.round(done * 100.0 / total));
 		List<Map<String, Object>> rows = db.queryForList(
-				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN user_departments ud ON ud.department_id=d.id LEFT JOIN users u ON u.id=ud.user_id AND u.is_active LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name");
+				"SELECT d.id department_id,d.name department_name,COUNT(DISTINCT u.id) FILTER(WHERE u.role='employee') employee_count,COUNT(DISTINCT ca.id) total_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.completed_at IS NOT NULL) completed_assignments,COUNT(DISTINCT ca.id) FILTER(WHERE ca.due_date<CURRENT_DATE AND ca.completed_at IS NULL) overdue_assignments FROM departments d LEFT JOIN user_departments ud ON ud.department_id=d.id LEFT JOIN users u ON u.id=ud.user_id AND u.is_active AND u.role='employee' LEFT JOIN course_assignments ca ON ca.user_id=u.id GROUP BY d.id,d.name ORDER BY d.name");
 		List<Map<String, Object>> deptStats = new ArrayList<>();
 		for (Map<String, Object> row : rows) {
 			Map<String, Object> d = new LinkedHashMap<>(row);
@@ -89,21 +96,27 @@ public class AdminController extends ApiSupport {
 					.body(Map.of("success", false, "message", "An account with this email already exists."));
 		String employeeId = b.get("employee_id") == null || b.get("employee_id").toString().isBlank()
 				? "EMP-" + (100000 + new java.security.SecureRandom().nextInt(900000))
-				: b.get("employee_id").toString().trim();
+				: plain(b.get("employee_id"), 40);
+		String fullName = plain(b.get("full_name"), 120);
+		if (fullName == null || fullName.isBlank())
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "A valid full name is required."));
 		Integer departmentId = departmentId(b);
 		if (b.containsKey("department_id") && b.get("department_id") != null && departmentId == null)
 			return ResponseEntity.badRequest()
 					.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
 		Map<String, Object> u = db.queryForMap(
 				"INSERT INTO users(employee_id,full_name,email,password_hash,role,department_id,designation,password_setup_required) VALUES(?,?,?,?,?,?,?,TRUE) RETURNING id,employee_id,full_name,email,role,department_id,designation,is_active,password_setup_required",
-				employeeId, b.get("full_name").toString().trim(), email,
-				passwords.encode(java.util.UUID.randomUUID().toString()), role, departmentId, b.get("designation"));
+				employeeId, fullName, email,
+				passwords.encode(java.util.UUID.randomUUID().toString()), role, departmentId, plain(b.get("designation"), 80));
 		long newUserId = ((Number) u.get("id")).longValue();
-		if (departmentId != null)
+		if (departmentId != null) {
 			db.update("INSERT INTO user_departments(user_id,department_id) VALUES(?,?) ON CONFLICT DO NOTHING", newUserId, departmentId);
+			departmentEnrollments.catchUpMember(newUserId, List.of(departmentId.longValue()));
+		}
 		otp.sendAccountSetupLink(newUserId, email, employeeId);
 		return ResponseEntity.status(201).body(Map.of("success", true, "message",
-				"User created. A one-time account setup link was emailed.", "user", u));
+				"User created. An account setup link is on its way to their email.", "user", u));
 	}
 
 	@PutMapping("/users/{id}")
@@ -116,7 +129,8 @@ public class AdminController extends ApiSupport {
 		// (trainer_departments) and only changes through the Departments tab.
 		List<String> sets = new ArrayList<>();
 		List<Object> params = new ArrayList<>();
-		if (b.get("designation") != null) { sets.add("designation=?"); params.add(b.get("designation")); }
+		List<Long> joinedDepartmentIds = new ArrayList<>();
+		if (b.get("designation") != null) { sets.add("designation=?"); params.add(plain(b.get("designation"), 80)); }
 		if (b.containsKey("is_active") && b.get("is_active") != null) { sets.add("is_active=?"); params.add(b.get("is_active")); }
 
 		// Reconcile memberships + primary department.
@@ -157,6 +171,7 @@ public class AdminController extends ApiSupport {
 			db.update("UPDATE users SET role='employee' WHERE id=? AND role='trainer' AND NOT EXISTS(SELECT 1 FROM trainer_departments WHERE trainer_id=?)", id, id);
 			Integer newPrimary = primary != null ? primary : (deptIds.isEmpty() ? null : deptIds.get(0));
 			sets.add("department_id=?"); params.add(newPrimary);
+			deptIds.forEach(d -> joinedDepartmentIds.add(d.longValue()));
 		} else if (b.containsKey("department_id")) {
 			// Additive: set/change the primary department and ensure membership exists.
 			Integer departmentId = departmentId(b);
@@ -164,16 +179,40 @@ public class AdminController extends ApiSupport {
 				return ResponseEntity.badRequest()
 						.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
 			sets.add("department_id=?"); params.add(departmentId);
-			if (departmentId != null)
+			if (departmentId != null) {
 				db.update("INSERT INTO user_departments(user_id,department_id) VALUES(?,?) ON CONFLICT DO NOTHING", id, departmentId);
+				joinedDepartmentIds.add(departmentId.longValue());
+			}
 		}
 
 		if (!sets.isEmpty()) {
 			params.add(id);
 			db.update("UPDATE users SET " + String.join(",", sets) + " WHERE id=?", params.toArray());
 		}
+		// Disabling must retire live sessions too, otherwise re-enabling the account revives them.
+		if (b.get("is_active") != null && !Boolean.parseBoolean(b.get("is_active").toString()))
+			db.update("UPDATE users SET token_version=token_version+1 WHERE id=?", id);
+
+		departmentEnrollments.catchUpMember(id, joinedDepartmentIds);
 
 		return ResponseEntity.ok(message("User updated successfully."));
+	}
+
+	@DeleteMapping("/users/{id}")
+	@Transactional
+	public ResponseEntity<?> deleteUser(@PathVariable long id, Authentication a) {
+		if (id == userId(a))
+			return ResponseEntity.badRequest().body(Map.of("success", false, "message", "You cannot delete your own account."));
+		List<Map<String, Object>> target = db.queryForList("SELECT full_name,role FROM users WHERE id=?", id);
+		if (target.isEmpty())
+			return ResponseEntity.status(404).body(Map.of("success", false, "message", "Account not found."));
+		if ("admin".equalsIgnoreCase(String.valueOf(target.getFirst().get("role"))))
+			return ResponseEntity.status(403).body(Map.of("success", false,
+					"message", "Administrator accounts cannot be deleted. Deactivate the account instead."));
+		// Every foreign key into users either cascades or nulls out, so no child cleanup is needed here.
+		db.update("DELETE FROM users WHERE id=?", id);
+		return ResponseEntity.ok(message(target.getFirst().get("full_name")
+				+ " and all of their training records have been permanently deleted."));
 	}
 
 	@PostMapping("/users/{id}/reset-password")
@@ -189,7 +228,7 @@ public class AdminController extends ApiSupport {
 			return ResponseEntity.badRequest().body(Map.of("success", false, "message",
 					"This user has not activated their account. Resend the setup link instead."));
 		otp.send((String) user.get("email"), "password_reset", (String) user.get("employee_id"));
-		return ResponseEntity.ok(message("Password reset code emailed to the user."));
+		return ResponseEntity.ok(message("Password reset code is on its way to the user's email."));
 	}
 
 	@PostMapping("/users/{id}/resend-setup")
@@ -203,7 +242,15 @@ public class AdminController extends ApiSupport {
 		Map<String, Object> user = users.getFirst();
 		otp.sendAccountSetupLink(((Number) user.get("id")).longValue(), (String) user.get("email"),
 				(String) user.get("employee_id"));
-		return ResponseEntity.ok(message("A new account setup link was emailed to the user."));
+		return ResponseEntity.ok(message("A new account setup link is on its way to the user's email."));
+	}
+
+	/** Delivery is queued, so a permanently failing address is otherwise invisible to the operator. */
+	@GetMapping("/email-status")
+	public Map<String, Object> emailStatus() {
+		return Map.of("success", true,
+				"summary", db.queryForList("SELECT purpose,status,COUNT(*) AS count,MAX(created_at) AS latest FROM email_outbox GROUP BY purpose,status ORDER BY MAX(created_at) DESC"),
+				"recent_failures", db.queryForList("SELECT id,to_email,purpose,attempts,LEFT(COALESCE(last_error,''),300) AS last_error FROM email_outbox WHERE status='failed' ORDER BY id DESC LIMIT 20"));
 	}
 
 	private Integer departmentId(Map<String, Object> body) {

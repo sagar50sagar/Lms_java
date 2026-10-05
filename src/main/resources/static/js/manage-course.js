@@ -1,3 +1,4 @@
+import { esc } from './escape.js';
 import { API } from './api.js';
 import { requireRole } from './auth.js';
 import { UI } from './ui.js';
@@ -38,7 +39,7 @@ async function loadExistingCourse(courseId) {
 
     activateCoursePanels();
   } catch (err) {
-    API.showToast(`Failed to load course: ${err.message}`, 'error');
+    API.showToast(`Failed to load course: ${esc(err.message)}`, 'error');
   }
 }
 
@@ -60,7 +61,7 @@ function activateCoursePanels() {
     chSelect.innerHTML = '<option value="" disabled selected>No Chapters available</option>';
   } else {
     chSelect.innerHTML = chapters.map(ch => `
-      <option value="${ch.id}">${ch.title}</option>
+      <option value="${ch.id}">${esc(ch.title)}</option>
     `).join('');
   }
 
@@ -145,7 +146,7 @@ function renderQuestionsList(questions) {
         </div>
 
         <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 8px; color: var(--secondary);">
-          ${q.question_text}
+          ${esc(q.question_text)}
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; font-size: 0.85rem; margin-bottom: 8px;">
@@ -153,13 +154,13 @@ function renderQuestionsList(questions) {
             const isCorrect = correctOptions.includes(opt.id.toUpperCase());
             return `
               <div style="padding: 6px 10px; border-radius: 6px; background: ${isCorrect ? '#dcfce7' : 'var(--bg-card)'}; border: 1px solid ${isCorrect ? '#86efac' : 'var(--border)'}; font-weight: ${isCorrect ? '700' : 'normal'}; color: ${isCorrect ? '#166534' : 'inherit'};">
-                ${isCorrect ? '✓ ' : ''}<strong>${opt.id}.</strong> ${opt.text}
+                ${isCorrect ? '✓ ' : ''}<strong>${esc(opt.id)}.</strong> ${esc(opt.text)}
               </div>
             `;
           }).join('')}
         </div>
 
-        ${q.explanation ? `<div style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Rationale: ${q.explanation}</div>` : ''}
+        ${q.explanation ? `<div style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Rationale: ${esc(q.explanation)}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -192,7 +193,7 @@ async function loadAssignSection() {
       deptSelect.innerHTML = '<option value="" disabled selected>No Departments available</option>';
       document.getElementById('inline-emp-select').innerHTML = '<option value="" disabled selected>No Employees available</option>';
     } else {
-      deptSelect.innerHTML = depts.map(d => `<option value="${d.id}">${d.name} (${d.employee_count} employees)</option>`).join('');
+      deptSelect.innerHTML = depts.map(d => `<option value="${d.id}">${esc(d.name)} (${d.employee_count} employees)</option>`).join('');
       await loadDeptEmployees(depts[0].id);
     }
 
@@ -221,7 +222,7 @@ async function loadDeptEmployees(deptId) {
     if (emps.length === 0) {
       empSelect.innerHTML = '<option value="" disabled selected>No Employees available</option>';
     } else {
-      empSelect.innerHTML = emps.map(e => `<option value="${e.id}">${e.full_name} (${e.email})</option>`).join('');
+      empSelect.innerHTML = emps.map(e => `<option value="${e.id}">${esc(e.full_name)} (${esc(e.email)})</option>`).join('');
     }
   } catch (err) {
     console.error(err);
@@ -244,10 +245,10 @@ function renderCurriculumTree() {
     <div style="display: flex; flex-direction: column; gap: 8px;">
       ${chapters.map(ch => `
         <div style="background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px;">
-          <div style="font-weight: 700; font-size: 0.9rem;">${ch.title}</div>
+          <div style="font-weight: 700; font-size: 0.9rem;">${esc(ch.title)}</div>
           <ul style="margin-left: 20px; font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
             ${(ch.lessons || []).map(l => `
-              <li>${l.content_type === 'video' ? '🎥' : '📄'} ${l.title} (${l.duration_mins} mins)</li>
+              <li>${l.content_type === 'video' ? '🎥' : '📄'} ${esc(l.title)} (${l.duration_mins} mins)</li>
             `).join('')}
           </ul>
         </div>
@@ -465,8 +466,11 @@ function setupEventListeners() {
     };
     if (target === 'department') {
       payload.department_id = document.getElementById('inline-dept-select').value;
+      if (!payload.department_id) { API.showToast('Please select a department.', 'error'); return; }
     } else {
       payload.user_id = document.getElementById('inline-emp-select').value;
+      // A disabled "No Employees available" option has no value, so this is what catches an empty department.
+      if (!payload.user_id) { API.showToast('This department has no employees to assign yet.', 'error'); return; }
     }
     const sel = (target === 'department' ? document.getElementById('inline-dept-select') : document.getElementById('inline-emp-select')).selectedOptions[0];
     const targetLabel = sel ? sel.textContent.trim() : 'the selected target';

@@ -1,3 +1,4 @@
+import { esc } from './escape.js';
 import { API } from './api.js';
 import { requireRole } from './auth.js';
 import { UI } from './ui.js';
@@ -10,7 +11,11 @@ let mdOriginal = null;
 
 // =================== CSV EXPORT HELPERS ===================
 function csvCell(value) {
-  const s = value == null ? '' : String(value);
+  let s = value == null ? '' : String(value);
+  // Excel and Sheets evaluate a cell starting with = + - @ or a control character, so a course
+  // titled '=HYPERLINK(...)' would execute for whoever opens the export. Numbers stay numbers.
+  const looksLikeFormula = /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s);
+  if (looksLikeFormula) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
 }
 
@@ -103,7 +108,7 @@ function setupModals() {
     if (allDepartments.length === 0) {
       sel.innerHTML = '<option value="" disabled selected>No Departments available</option>';
     } else {
-      sel.innerHTML = '<option value="">-- None --</option>' + allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+      sel.innerHTML = '<option value="">-- None --</option>' + allDepartments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
     }
     document.getElementById('create-user-modal').classList.add('open');
   });
@@ -229,7 +234,7 @@ function renderCompliance() {
   }
   deptBody.innerHTML = rows.map(d => `
       <tr>
-        <td data-label="Department"><strong>${d.department_name}</strong></td>
+        <td data-label="Department"><strong>${esc(d.department_name)}</strong></td>
         <td data-label="Headcount">${d.employee_count}</td>
         <td data-label="Assigned">${d.total_assignments}</td>
         <td data-label="Completed"><span style="color:var(--success);font-weight:600;">${d.completed_assignments}</span></td>
@@ -250,7 +255,7 @@ async function loadDepartments() {
     const atDeptSelect = document.getElementById('at-dept-select');
     const deptOptions = allDepartments.length === 0
       ? '<option value="" disabled selected>No Departments available</option>'
-      : allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+      : allDepartments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
     if (assignDeptSelect) assignDeptSelect.innerHTML = deptOptions;
     if (atDeptSelect) atDeptSelect.innerHTML = deptOptions;
 
@@ -274,12 +279,12 @@ function renderDepartments() {
         <thead><tr><th>Department</th><th>Description</th><th>Employees</th><th>Actions</th></tr></thead>
         <tbody>${depts.map(d => `
           <tr>
-            <td data-label="Department"><strong>${d.name}</strong></td>
+            <td data-label="Department"><strong>${esc(d.name)}</strong></td>
             <td data-label="Description" style="color:var(--text-muted);font-size:0.85rem;">${d.description || '-'}</td>
             <td data-label="Employees">${d.employee_count}</td>
             <td data-label="Actions" class="cell-actions">
-              <button class="btn btn-secondary btn-sm add-member-btn" data-id="${d.id}" data-name="${d.name}">+ Employee</button>
-              <button class="btn btn-secondary btn-sm assign-trainer-btn" data-id="${d.id}" data-name="${d.name}">+ Trainer</button>
+              <button class="btn btn-secondary btn-sm add-member-btn" data-id="${d.id}" data-name="${esc(d.name)}">+ Employee</button>
+              <button class="btn btn-secondary btn-sm assign-trainer-btn" data-id="${d.id}" data-name="${esc(d.name)}">+ Trainer</button>
               <button class="btn btn-secondary btn-sm delete-dept-btn" data-id="${d.id}" style="color:var(--danger);">Delete</button>
             </td>
           </tr>
@@ -300,7 +305,7 @@ function renderDepartments() {
         if (available.length === 0) {
           amSel.innerHTML = '<option value="" disabled selected>No Employees available</option>';
         } else {
-          amSel.innerHTML = available.map(e => `<option value="${e.id}">${e.full_name} · ${e.email}</option>`).join('');
+          amSel.innerHTML = available.map(e => `<option value="${e.id}">${esc(e.full_name)} · ${esc(e.email)}</option>`).join('');
         }
       } catch(e) {}
       document.getElementById('add-member-modal').classList.add('open');
@@ -319,7 +324,7 @@ function renderDepartments() {
         if (candidates.length === 0) {
           atSel.innerHTML = '<option value="" disabled selected>No users available</option>';
         } else {
-          atSel.innerHTML = candidates.map(t => `<option value="${t.id}">${t.full_name} · ${t.email}</option>`).join('');
+          atSel.innerHTML = candidates.map(t => `<option value="${t.id}">${esc(t.full_name)} · ${esc(t.email)}</option>`).join('');
         }
       } catch(e) {}
       document.getElementById('assign-trainer-modal').classList.add('open');
@@ -371,9 +376,9 @@ async function loadTrainerDeptAssignments() {
         <thead><tr><th>Trainer</th><th>Email</th><th>Department</th><th>Actions</th></tr></thead>
         <tbody>${assignments.map(a => `
           <tr>
-            <td data-label="Trainer"><strong>${a.trainer_name}</strong></td>
+            <td data-label="Trainer"><strong>${esc(a.trainer_name)}</strong></td>
             <td data-label="Email" style="color:var(--text-muted);font-size:0.85rem;">${a.trainer_email}</td>
-            <td data-label="Department">${a.department_name}</td>
+            <td data-label="Department">${esc(a.department_name)}</td>
             <td data-label="Actions" class="cell-actions"><button class="btn btn-secondary btn-sm remove-trainer-btn" data-dept="${a.department_id}" data-trainer="${a.trainer_id}" style="color:var(--danger);">Remove</button></td>
           </tr>
         `).join('')}</tbody>
@@ -413,7 +418,7 @@ async function loadRoster() {
     populateRosterDeptFilter();
     renderRoster();
   } catch (err) {
-    document.getElementById('employee-roster-body').innerHTML = `<tr class="table-placeholder"><td colspan="8" style="color:var(--danger);">Error: ${err.message}</td></tr>`;
+    document.getElementById('employee-roster-body').innerHTML = `<tr class="table-placeholder"><td colspan="8" style="color:var(--danger);">Error: ${esc(err.message)}</td></tr>`;
   }
 }
 
@@ -421,7 +426,7 @@ function populateRosterDeptFilter() {
   const sel = document.getElementById('roster-dept-filter');
   const current = sel.value;
   sel.innerHTML = '<option value="">All Departments</option>' +
-    allDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join('') +
+    allDepartments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('') +
     '<option value="__none__">Unassigned</option>';
   if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
 }
@@ -461,8 +466,8 @@ function openManageDeptsModal(userId) {
     : allDepartments.map(d => `
       <label class="opt-row">
         <input type="checkbox" class="md-dept-check" value="${d.id}" ${current.includes(Number(d.id)) ? 'checked' : ''}>
-        <span style="flex:1;">${d.name}</span>
-        <input type="radio" name="md-primary" value="${d.id}" ${Number(d.id) === primary ? 'checked' : ''} title="Set as primary department" aria-label="Set ${d.name} as primary department">
+        <span style="flex:1;">${esc(d.name)}</span>
+        <input type="radio" name="md-primary" value="${d.id}" ${Number(d.id) === primary ? 'checked' : ''} title="Set as primary department" aria-label="Set ${esc(d.name)} as primary department">
       </label>`).join('') +
       '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">Tick to belong to a department. The radio sets the primary/home department.</div>';
   syncPrimaryEnabled();
@@ -530,7 +535,7 @@ function renderRoster() {
       empSelect.innerHTML = '<option value="" disabled selected>No Employees available</option>';
     } else {
       empSelect.innerHTML = employeesOnly.map(e => `
-        <option value="${e.id}">${e.full_name} (${e.email}) - ${e.department_name || 'No Dept'}</option>
+        <option value="${e.id}">${esc(e.full_name)} (${esc(e.email)}) - ${e.department_name || 'No Dept'}</option>
       `).join('');
     }
   }
@@ -541,9 +546,11 @@ function renderRoster() {
     return;
   }
   tbody.innerHTML = list.map(emp => `
-      <tr>
+      <tr class="${emp.is_active ? '' : 'row-inactive'}">
         <td data-label="ID"><code>${emp.employee_id || 'N/A'}</code></td>
-        <td data-label="Name"><strong>${emp.full_name}</strong><div style="font-size:0.8rem;color:var(--text-muted);">${emp.email}</div></td>
+        <td data-label="Name"><strong>${esc(emp.full_name)}</strong><div style="font-size:0.8rem;color:var(--text-muted);">${esc(emp.email)}</div>
+          <span class="status-pill ${emp.is_active ? 'status-pill-active' : 'status-pill-inactive'}">${emp.is_active ? 'Active' : 'Inactive'}</span>
+        </td>
         <td data-label="Role">
           <span class="role-badge role-badge-${emp.role === 'trainer' ? 'trainer' : 'employee'}">${emp.role}</span>
           ${emp.role==='trainer' ? '<div style="font-size:0.72rem;color:var(--text-muted);">via dept &rarr; Trainer</div>' : ''}
@@ -558,7 +565,9 @@ function renderRoster() {
         <td data-label="Completed"><span style="color:var(--success);font-weight:600;">${emp.completed_courses}</span></td>
         <td data-label="Overdue"><span style="color:${parseInt(emp.overdue_courses)>0?'var(--danger)':'var(--text-muted)'};font-weight:600;">${emp.overdue_courses}</span></td>
         <td data-label="Actions" class="cell-actions">
-          ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${emp.full_name}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${emp.full_name}">Reset Password</button>`}
+          ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Reset Password</button>`}
+          <button class="btn btn-secondary btn-sm toggle-active-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" data-active="${emp.is_active ? '1' : '0'}">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
+          <button class="btn btn-secondary btn-sm delete-user-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" style="color:var(--danger);">Delete</button>
         </td>
       </tr>
     `).join('');
@@ -580,6 +589,29 @@ function renderRoster() {
       catch (e) { API.showToast(e.message, 'error'); }
     });
   });
+  document.querySelectorAll('.toggle-active-btn').forEach(btn => {
+    const active = btn.dataset.active === '1';
+    btn.addEventListener('click', async () => {
+      if (active && !(await UI.confirm({ title: 'Deactivate Account?', message: `${btn.dataset.name} will be signed out immediately and cannot log back in. Their assignments, progress and certificates are kept.`, type: 'warning', confirmText: 'Deactivate' }))) return;
+      try {
+        const result = await API.put(`/admin/users/${btn.dataset.id}`, { is_active: !active });
+        API.showToast(result.message, 'success');
+        loadRoster();
+      } catch (e) { API.showToast(e.message, 'error'); }
+    });
+  });
+  document.querySelectorAll('.delete-user-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ok = await UI.confirm({
+        title: 'Delete Account Permanently?',
+        message: `This erases ${btn.dataset.name} along with their assignments, lesson progress and certificates. It cannot be undone. To keep the training history, deactivate the account instead.`,
+        type: 'danger', confirmText: 'Delete Permanently'
+      });
+      if (!ok) return;
+      try { const result = await API.delete(`/admin/users/${btn.dataset.id}`); API.showToast(result.message, 'success'); loadRoster(); }
+      catch (e) { API.showToast(e.message, 'error'); }
+    });
+  });
 }
 
 // =================== COURSES ===================
@@ -592,7 +624,7 @@ async function loadCourses() {
     if (allCourses.length === 0) {
       select.innerHTML = '<option value="" disabled selected>No Courses available</option>';
     } else {
-      select.innerHTML = allCourses.map(c => `<option value="${c.id}">[${c.category}] ${c.title}</option>`).join('');
+      select.innerHTML = allCourses.map(c => `<option value="${c.id}">[${esc(c.category)}] ${esc(c.title)}</option>`).join('');
     }
 
     populateCourseCategoryFilter();
@@ -624,11 +656,11 @@ function renderCourses() {
         <thead><tr><th>Title</th><th>Category</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>${courses.map(c => `
           <tr>
-            <td data-label="Title"><strong>${c.title}</strong>${c.is_mandatory?'<span class="badge badge-mandatory" style="margin-left:6px;font-size:0.7rem;">Mandatory</span>':''}</td>
-            <td data-label="Category">${c.category}</td>
+            <td data-label="Title"><strong>${esc(c.title)}</strong>${c.is_mandatory?'<span class="badge badge-mandatory" style="margin-left:6px;font-size:0.7rem;">Mandatory</span>':''}</td>
+            <td data-label="Category">${esc(c.category)}</td>
             <td data-label="Duration">${c.estimated_duration_hours||1} hrs</td>
             <td data-label="Status"><span style="color:${c.is_published?'var(--success)':'var(--text-muted)'};font-weight:600;font-size:0.85rem;">${c.is_published?'✅ Published':'⬜ Draft'}</span></td>
-            <td data-label="Actions" class="cell-actions"><a href="/manage-course.html?id=${c.id}" class="btn btn-secondary btn-sm">✏️ Edit</a><a href="/course-detail.html?id=${c.id}" class="btn btn-secondary btn-sm">👁 View</a><button class="btn btn-secondary btn-sm delete-course-btn" data-id="${c.id}" data-title="${c.title}" style="color:var(--danger);">Delete</button></td>
+            <td data-label="Actions" class="cell-actions"><a href="/manage-course.html?id=${c.id}" class="btn btn-secondary btn-sm">✏️ Edit</a><a href="/course-detail.html?id=${c.id}" class="btn btn-secondary btn-sm">👁 View</a><button class="btn btn-secondary btn-sm delete-course-btn" data-id="${c.id}" data-title="${esc(c.title)}" style="color:var(--danger);">Delete</button></td>
           </tr>
         `).join('')}</tbody>
       </table></div>
@@ -722,6 +754,12 @@ async function handleAssignCourse(e) {
     payload.department_id = document.getElementById('assign-department-select').value;
     if (!payload.department_id) {
       API.showToast('Please select a department.', 'error');
+      return;
+    }
+    // The server only enrols role='employee' members, so a trainers-only department would fail.
+    const target = allDepartments.find(d => Number(d.id) === Number(payload.department_id)) || {};
+    if (Number(target.employee_count || 0) === 0) {
+      API.showToast(`${target.name || 'This department'} has no employees to assign yet. Add employees to it first.`, 'error');
       return;
     }
   } else {

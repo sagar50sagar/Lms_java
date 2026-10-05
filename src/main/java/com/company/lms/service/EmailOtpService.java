@@ -2,8 +2,6 @@ package com.company.lms.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,17 +19,14 @@ public class EmailOtpService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final JdbcTemplate db;
     private final PasswordEncoder passwords;
-    private final JavaMailSender mail;
-    private final String from;
+    private final EmailOutboxService outbox;
     private final String frontendUrl;
 
-    public EmailOtpService(JdbcTemplate db, PasswordEncoder passwords, JavaMailSender mail,
-                           @Value("${app.mail.from:no-reply@company.local}") String from,
+    public EmailOtpService(JdbcTemplate db, PasswordEncoder passwords, EmailOutboxService outbox,
                            @Value("${app.frontend-url:http://localhost:8080}") String frontendUrl) {
         this.db = db;
         this.passwords = passwords;
-        this.mail = mail;
-        this.from = from;
+        this.outbox = outbox;
         this.frontendUrl = frontendUrl.replaceAll("/+$", "");
     }
 
@@ -43,18 +38,11 @@ public class EmailOtpService {
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         db.update("INSERT INTO account_setup_tokens(user_id,token_hash,expires_at) VALUES(?,?,?)", userId, sha256(token), OffsetDateTime.now().plusHours(24));
         String link = frontendUrl + "/setup.html?token=" + token;
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(from);
-        message.setTo(email.trim().toLowerCase());
-        message.setSubject("Set up your LMS account");
-        message.setText("Your LMS account has been created.\n\nEmployee ID: " + employeeId
+        outbox.enqueue(email.trim().toLowerCase(), "Set up your LMS account",
+            "Your LMS account has been created.\n\nEmployee ID: " + employeeId
                 + "\n\nSet your password and activate your account using this one-time link:\n" + link
-                + "\n\nThis link expires in 24 hours. Do not share it with anyone.");
-        try {
-            mail.send(message);
-        } catch (RuntimeException e) {
-            throw new IllegalStateException("Unable to send the account setup email. Please try again later.", e);
-        }
+                + "\n\nThis link expires in 24 hours. Do not share it with anyone.",
+            "account_setup");
     }
 
     @Transactional
@@ -63,7 +51,7 @@ public class EmailOtpService {
         if (tokens.isEmpty()) return false;
         Map<String,Object> setup = tokens.getFirst();
         db.update("UPDATE account_setup_tokens SET used_at=CURRENT_TIMESTAMP WHERE id=?", setup.get("id"));
-        db.update("UPDATE users SET password_hash=?,password_setup_required=FALSE WHERE id=?", passwords.encode(password), setup.get("user_id"));
+        db.update("UPDATE users SET password_hash=?,password_setup_required=FALSE,token_version=token_version+1 WHERE id=?", passwords.encode(password), setup.get("user_id"));
         return true;
     }
 
@@ -95,17 +83,8 @@ public class EmailOtpService {
             default -> "reset your password";
         };
         String idLine = employeeId == null || employeeId.isBlank() ? "" : "\nYour employee ID: " + employeeId + "\n";
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(from);
-        message.setTo(normalized);
-        message.setSubject(subject);
-        message.setText("Use this one-time code to " + action + "." + idLine
-                + "\nCode: " + code + "\n\nThis code expires in 10 minutes. Do not share it with anyone.");
-        try {
-            mail.send(message);
-        } catch (RuntimeException e) {
-            throw new IllegalStateException("Unable to send the verification email. Please try again later.", e);
-        }
+        outbox.enqueue(normalized, subject, "Use this one-time code to " + action + "." + idLine
+                + "\nCode: " + code + "\n\nThis code expires in 10 minutes. Do not share it with anyone.", purpose);
     }
 
     @Transactional

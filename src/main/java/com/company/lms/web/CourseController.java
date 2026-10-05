@@ -1,5 +1,6 @@
 package com.company.lms.web;
 
+import com.company.lms.service.CourseAccess;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,9 +12,15 @@ import java.util.*;
 @RequestMapping("/api/courses")
 public class CourseController extends ApiSupport {
 	private final JdbcTemplate db;
+	private final CourseAccess access;
 
-	public CourseController(JdbcTemplate db) {
+	public CourseController(JdbcTemplate db, CourseAccess access) {
 		this.db = db;
+		this.access = access;
+	}
+
+	private Map<String, Object> notYourCourse() {
+		return Map.of("success", false, "message", "You can only change courses you created.");
 	}
 
 	@GetMapping
@@ -134,15 +141,16 @@ public class CourseController extends ApiSupport {
 	@PostMapping
 	@PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
 	public ResponseEntity<?> create(@RequestBody Map<String, Object> b, Authentication a) {
-		String title = String.valueOf(b.getOrDefault("title", "")).trim();
-		if (title.isBlank())
+		String title = plain(b.get("title"), 150);
+		if (title == null || title.isBlank())
 			return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Course title is required."));
 		String slug = title.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "") + "-"
 				+ (1000 + new Random().nextInt(9000));
 		boolean isPub = false; // New courses always start as Draft; they publish automatically when assigned to an employee.
 		Map<String, Object> c = db.queryForMap(
 				"INSERT INTO courses(title,slug,description,category,is_mandatory,estimated_duration_hours,created_by,is_published) VALUES(?,?,?,?,?,?,?,?) RETURNING *",
-				title, slug, b.getOrDefault("description", ""), b.getOrDefault("category", "General"),
+				title, slug, richText(b.get("description"), 4000),
+				b.get("category") == null ? "General" : plain(b.get("category"), 60),
 				bool(b, "is_mandatory"), number(b, "estimated_duration_hours", 1), userId(a), isPub);
 		return ResponseEntity.status(201)
 				.body(Map.of("success", true, "message", "Course created successfully.", "course", c));
@@ -150,11 +158,15 @@ public class CourseController extends ApiSupport {
 
 	@PutMapping("/{id}")
 	@PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
-	public ResponseEntity<?> update(@PathVariable long id, @RequestBody Map<String, Object> b) {
+	public ResponseEntity<?> update(@PathVariable long id, @RequestBody Map<String, Object> b, Authentication a) {
+		if (!access.canEdit(userId(a), isAdmin(a), id))
+			return ResponseEntity.status(403).body(notYourCourse());
 		int count = db.update(
 				"UPDATE courses SET title=COALESCE(?,title),description=COALESCE(?,description),category=COALESCE(?,category),is_mandatory=COALESCE(?,is_mandatory),estimated_duration_hours=COALESCE(?,estimated_duration_hours),updated_at=CURRENT_TIMESTAMP WHERE id=?",
-				b.get("title"), b.get("description"), b.get("category"), b.get("is_mandatory"),
-				b.get("estimated_duration_hours"), id);
+				b.containsKey("title") ? plain(b.get("title"), 150) : null,
+				b.containsKey("description") ? richText(b.get("description"), 4000) : null,
+				b.containsKey("category") ? plain(b.get("category"), 60) : null,
+				b.get("is_mandatory"), b.get("estimated_duration_hours"), id);
 		if (count == 0)
 			return ResponseEntity.status(404).body(Map.of("success", false, "message", "Course not found."));
 		Map<String, Object> updatedCourse = db.queryForMap("SELECT * FROM courses WHERE id=?", id);
@@ -172,22 +184,31 @@ public class CourseController extends ApiSupport {
 
 	@PostMapping("/{courseId}/chapters")
 	@PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
-	public ResponseEntity<?> chapter(@PathVariable long courseId, @RequestBody Map<String, Object> b) {
+	public ResponseEntity<?> chapter(@PathVariable long courseId, @RequestBody Map<String, Object> b, Authentication a) {
+		if (!access.canEdit(userId(a), isAdmin(a), courseId))
+			return ResponseEntity.status(403).body(notYourCourse());
 		Map<String, Object> r = db.queryForMap(
 				"INSERT INTO chapters(course_id,title,sequence_order) VALUES(?,?,?) RETURNING *", courseId,
-				b.get("title"), number(b, "sequence_order", 1));
+				plain(b.get("title"), 200), number(b, "sequence_order", 1));
 		return ResponseEntity.status(201).body(ok("chapter", r));
 	}
 
 	@PostMapping("/{courseId}/chapters/{chapterId}/lessons")
 	@PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
 	public ResponseEntity<?> lesson(@PathVariable long courseId, @PathVariable long chapterId,
-			@RequestBody Map<String, Object> b) {
+			@RequestBody Map<String, Object> b, Authentication a) {
+		if (!access.canEdit(userId(a), isAdmin(a), courseId))
+			return ResponseEntity.status(403).body(notYourCourse());
+		if (!access.chapterBelongsToCourse(chapterId, courseId))
+			return ResponseEntity.status(400).body(Map.of("success", false, "message", "That chapter is not part of this course."));
+		String videoUrl = videoEmbedUrl(b.get("video_url"));
+		if (videoUrl == null)
+			throw bad("Video must be a full https:// link to a YouTube video or a shared Google Drive file.");
 		Map<String, Object> r = db.queryForMap(
 				"INSERT INTO lessons(chapter_id,course_id,title,content_type,content,video_url,duration_mins,sequence_order) VALUES(?,?,?,?,?,?,?,?) RETURNING *",
-				chapterId, courseId, b.get("title"), b.getOrDefault("content_type", "text"),
-				b.getOrDefault("content", ""), b.get("video_url"), number(b, "duration_mins", 10),
-				number(b, "sequence_order", 1));
+				chapterId, courseId, plain(b.get("title"), 200), plain(b.get("content_type"), 20),
+				richText(b.get("content"), 20000), videoUrl.isEmpty() ? null : videoUrl,
+				number(b, "duration_mins", 10), number(b, "sequence_order", 1));
 		return ResponseEntity.status(201).body(ok("lesson", r));
 	}
 

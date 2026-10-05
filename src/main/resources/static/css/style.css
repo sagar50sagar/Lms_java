@@ -153,6 +153,36 @@ a:hover {
 .role-badge-trainer,
 .dept-chip-primary { background: var(--primary); border-color: var(--primary); color: #ffffff; }
 
+/* Admin Users tab: account status pill, and a muted row for a deactivated employee */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 1px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.6;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.status-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-pill-active { background: var(--success-bg); color: var(--success); border-color: transparent; }
+.status-pill-inactive { background: var(--bg-page); color: var(--text-muted); }
+tr.row-inactive > td { opacity: 0.62; }
+/* The left accent would read as a stray bar in the mobile card layout, so it is desktop-only. */
+@media (min-width: 769px) {
+  tr.row-inactive > td:first-child { box-shadow: inset 3px 0 0 var(--text-muted); }
+}
+
 /* Mobile Bottom Navigation Bar */
 .mobile-bottom-nav {
   display: none;

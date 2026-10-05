@@ -21,6 +21,7 @@
   <script type="module" src="/js/auth.js"></script>
   <script type="module">
     import { API } from '/js/api.js';
+    import { formatDate } from '/js/escape.js';
 
     async function loadCourseDetail() {
       const container = document.getElementById('course-detail-container');
@@ -38,9 +39,10 @@
         const p = c.user_progress || {};
 
         let actionButtonHtml = `
-          <button id="enroll-btn" class="btn btn-primary btn-lg">
-            Enroll & Start Training
-          </button>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+            Not assigned to you yet. Trainers and administrators assign courses, and the assignment enrols
+            the employee automatically.
+          </p>
         `;
 
         if (p.assignment) {
@@ -80,7 +82,7 @@
                 <span>⏱ Duration: <strong>${c.estimated_duration_hours || 1.0} hrs</strong></span>
                 <span>📚 Total Lessons: <strong>${c.total_lessons || 0}</strong></span>
                 <span>🧑‍🏫 Instructor: <strong>${c.creator_name || 'Corporate Training Team'}</strong></span>
-                ${p.assignment && p.assignment.due_date ? `<span>📅 Target Deadline: <strong>${new Date(p.assignment.due_date).toLocaleDateString()}</strong></span>` : ''}
+                ${p.assignment && p.assignment.due_date ? `<span>📅 Target Deadline: <strong>${formatDate(p.assignment.due_date)}</strong></span>` : ''}
               </div>
 
               ${p.assignment ? `
@@ -142,24 +144,6 @@
             </div>
           </div>
         `;
-
-        const enrollBtn = document.getElementById('enroll-btn');
-        if (enrollBtn) {
-          enrollBtn.addEventListener('click', async () => {
-            const user = API.getUser();
-            if (!user) {
-              window.location.href = `/login.html?redirect=${encodeURIComponent(window.location.href)}`;
-              return;
-            }
-            try {
-              await API.post('/assignments/self-enroll', { course_id: c.id });
-              API.showToast('Successfully enrolled in training!', 'success');
-              window.location.href = `/course-player.html?id=${c.id}`;
-            } catch (err) {
-              API.showToast(err.message, 'error');
-            }
-          });
-        }
       } catch (err) {
         container.innerHTML = `<p class="alert alert-danger">Failed to load course: ${err.message}</p>`;
       }

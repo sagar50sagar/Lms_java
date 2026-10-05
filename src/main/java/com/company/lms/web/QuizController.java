@@ -1,4 +1,5 @@
 package com.company.lms.web;
+import com.company.lms.service.CourseAccess;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,9 +13,10 @@ public class QuizController extends ApiSupport {
   private final JdbcTemplate db;
   private final ObjectMapper json;
   private final ProgressController progress;
+  private final CourseAccess access;
 
-  public QuizController(JdbcTemplate db, ObjectMapper json, ProgressController progress) {
-    this.db = db; this.json = json; this.progress = progress;
+  public QuizController(JdbcTemplate db, ObjectMapper json, ProgressController progress, CourseAccess access) {
+    this.db = db; this.json = json; this.progress = progress; this.access = access;
   }
 
   /** Parse a JSONB value from PostgreSQL into a real Java object (List/Map).
@@ -111,16 +113,21 @@ public class QuizController extends ApiSupport {
   }
 
   @PostMapping @PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
-  public Map<String,Object> save(@RequestBody Map<String,Object> b) throws Exception {
-    Object course = b.get("course_id");
-    var existing = db.queryForList("SELECT id FROM quizzes WHERE course_id=?", course);
+  public ResponseEntity<?> save(@RequestBody Map<String,Object> b, Authentication a) throws Exception {
+    long courseId;
+    try { courseId = Long.parseLong(String.valueOf(b.get("course_id")).trim()); }
+    catch (NumberFormatException e) { return ResponseEntity.badRequest().body(Map.of("success",false,"message","A valid course_id is required.")); }
+    if (!access.canEdit(userId(a), isAdmin(a), courseId))
+      return ResponseEntity.status(403).body(Map.of("success",false,"message","You can only change quizzes on courses you created."));
+    String quizTitle = plain(b.get("title"), 150);
+    var existing = db.queryForList("SELECT id FROM quizzes WHERE course_id=?", courseId);
     long id = existing.isEmpty()
       ? db.queryForObject("INSERT INTO quizzes(course_id,title,passing_score,time_limit_mins) VALUES(?,?,?,?) RETURNING id",
-          Long.class, course, b.get("title"), b.getOrDefault("passing_score", 70), b.getOrDefault("time_limit_mins", 15))
+          Long.class, courseId, quizTitle, b.getOrDefault("passing_score", 70), b.getOrDefault("time_limit_mins", 15))
       : ((Number) existing.getFirst().get("id")).longValue();
     if (!existing.isEmpty())
       db.update("UPDATE quizzes SET title=?,passing_score=?,time_limit_mins=? WHERE id=?",
-        b.get("title"), b.getOrDefault("passing_score", 70), b.getOrDefault("time_limit_mins", 15), id);
+        quizTitle, b.getOrDefault("passing_score", 70), b.getOrDefault("time_limit_mins", 15), id);
     if (b.get("questions") instanceof List<?> questions) {
       db.update("DELETE FROM quiz_questions WHERE quiz_id=?", id);
       int order = 1;
@@ -128,19 +135,42 @@ public class QuizController extends ApiSupport {
         if (!(item instanceof Map<?,?> q)) continue;
         Object correct = q.get("correct_option");
         String answer = correct instanceof Collection<?> c
-          ? String.join(",", c.stream().map(Object::toString).sorted().toList())
-          : String.valueOf(correct);
+          ? c.stream().map(x -> plain(x, 4)).filter(Objects::nonNull).sorted().reduce((x,y) -> x+","+y).orElse("")
+          : plain(correct, 4);
         Object type = q.get("question_type"), explanation = q.get("explanation");
+        String questionType = type == null ? "mcq" : plain(type, 10);
         db.update("INSERT INTO quiz_questions(quiz_id,question_type,question_text,options,correct_option,explanation,sequence_order) VALUES(?,?,?,?::jsonb,?,?,?)",
-          id, type == null ? "mcq" : type, q.get("question_text"),
-          json.writeValueAsString(q.get("options")), answer, explanation == null ? "" : explanation, order++);
+          id, questionType, plain(q.get("question_text"), 2000),
+          json.writeValueAsString(safeOptions(q.get("options"))), answer, plain(explanation, 2000), order++);
       }
     }
-    return Map.of("success", true, "message", "Quiz saved successfully.", "quiz_id", id);
+    return ResponseEntity.ok(Map.of("success", true, "message", "Quiz saved successfully.", "quiz_id", id));
+  }
+
+  /** Option labels are rendered with innerHTML, so only the id/text pair survives and neither may carry markup. */
+  private Object safeOptions(Object raw) {
+    if (!(raw instanceof List<?> list)) return List.of();
+    List<Object> clean = new ArrayList<>();
+    for (Object item : list) {
+      if (item instanceof Map<?,?> option) {
+        Map<String,Object> entry = new LinkedHashMap<>();
+        entry.put("id", plain(option.get("id"), 4));
+        entry.put("text", plain(option.get("text"), 500));
+        clean.add(entry);
+      } else {
+        clean.add(plain(item, 500));
+      }
+    }
+    return clean;
   }
 
   @DeleteMapping("/questions/{id}") @PreAuthorize("hasAnyRole('TRAINER','ADMIN')")
-  public ResponseEntity<?> delete(@PathVariable long id) {
+  public ResponseEntity<?> delete(@PathVariable long id, Authentication a) {
+    List<Map<String,Object>> owners = db.queryForList(
+      "SELECT q.course_id FROM quiz_questions qq JOIN quizzes q ON q.id=qq.quiz_id WHERE qq.id=?", id);
+    if (owners.isEmpty()) return ResponseEntity.status(404).body(Map.of("success", false, "message", "Question not found."));
+    if (!access.canEdit(userId(a), isAdmin(a), ((Number) owners.getFirst().get("course_id")).longValue()))
+      return ResponseEntity.status(403).body(Map.of("success",false,"message","You can only change quizzes on courses you created."));
     return db.update("DELETE FROM quiz_questions WHERE id=?", id) == 0
       ? ResponseEntity.status(404).body(Map.of("success", false, "message", "Question not found."))
       : ResponseEntity.ok(message("Question deleted successfully."));

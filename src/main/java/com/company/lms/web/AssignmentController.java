@@ -36,6 +36,7 @@ public class AssignmentController extends ApiSupport {
    }
 
    List<Long> users;
+   Long grantDepartmentId = null;
    if (uidObj != null && !uidObj.toString().isBlank()) {
      try {
        users = List.of(Long.parseLong(uidObj.toString().trim()));
@@ -43,13 +44,24 @@ public class AssignmentController extends ApiSupport {
        return ResponseEntity.badRequest().body(Map.of("success",false,"message","Invalid user ID format."));
      }
    } else {
-     int deptInt = Integer.parseInt(deptObj.toString().trim());
-     users = db.queryForList("SELECT u.id FROM user_departments ud JOIN users u ON u.id=ud.user_id WHERE ud.department_id=? AND u.is_active=TRUE AND u.role='employee'", Long.class, deptInt);
-     if("trainer".equals(role(a))){
-       List<Map<String,Object>> allowed = db.queryForList("SELECT 1 FROM trainer_departments WHERE trainer_id=? AND department_id=?", userId(a), deptInt);
-       if(allowed.isEmpty()){
-         return ResponseEntity.status(403).body(Map.of("success",false,"message","You are not assigned to this department."));
-       }
+     long deptId;
+     try {
+       deptId = Long.parseLong(deptObj.toString().trim());
+     } catch(NumberFormatException e) {
+       return ResponseEntity.badRequest().body(Map.of("success",false,"message","Department ID must be numeric."));
+     }
+     if("trainer".equals(role(a)) && !managedDepartments(userId(a)).contains(deptId)){
+       return ResponseEntity.status(403).body(Map.of("success",false,"message","You are not assigned to this department."));
+     }
+     users = db.queryForList("SELECT u.id FROM user_departments ud JOIN users u ON u.id=ud.user_id WHERE ud.department_id=? AND u.is_active=TRUE AND u.role='employee'", Long.class, deptId);
+     grantDepartmentId = deptId;
+   }
+
+   // A trainer may only reach employees of a department they manage, whichever targeting style was used.
+   if("trainer".equals(role(a))){
+     Set<Long> reachable = new HashSet<>(db.queryForList("SELECT ud.user_id FROM user_departments ud WHERE ud.department_id IN (SELECT department_id FROM trainer_departments WHERE trainer_id=?)", Long.class, userId(a)));
+     if(!reachable.containsAll(users)){
+       return ResponseEntity.status(403).body(Map.of("success",false,"message","You can only assign courses to employees in the departments you manage."));
      }
    }
 
@@ -62,11 +74,14 @@ public class AssignmentController extends ApiSupport {
    if (dueDateObj != null && !dueDateObj.toString().isBlank()) {
      try {
        dueDate = java.sql.Date.valueOf(dueDateObj.toString().trim());
-     } catch(IllegalArgumentException ignored) {}
+     } catch(IllegalArgumentException e) {
+       // Silently dropping this handed the employee an undated task and an incomplete compliance audit.
+       return ResponseEntity.badRequest().body(Map.of("success",false,"message","Due date must be a valid date in YYYY-MM-DD form."));
+     }
    }
 
    for (Long u : users) {
-     db.update("INSERT INTO course_assignments(course_id,user_id,assigned_by,due_date,status) VALUES(?,?,?,?, 'enrolled') ON CONFLICT(course_id,user_id) DO UPDATE SET due_date=EXCLUDED.due_date,assigned_by=EXCLUDED.assigned_by", courseId, u, userId(a), dueDate);
+     db.update("INSERT INTO course_assignments(course_id,user_id,assigned_by,due_date,status,assigned_department_id) VALUES(?,?,?,?, 'enrolled',?) ON CONFLICT(course_id,user_id) DO UPDATE SET due_date=EXCLUDED.due_date,assigned_by=EXCLUDED.assigned_by,assigned_department_id=EXCLUDED.assigned_department_id", courseId, u, userId(a), dueDate, grantDepartmentId);
    }
    db.update("UPDATE courses SET is_published=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=?", courseId);
 
@@ -75,20 +90,11 @@ public class AssignmentController extends ApiSupport {
 
  @PostMapping("/self-enroll")
  public ResponseEntity<?> selfEnroll(@RequestBody Map<String,Object> b, Authentication a){
-   if(a == null) return ResponseEntity.status(401).body(Map.of("success",false,"message","Authentication required."));
-   Object courseObj = b.get("course_id");
-   if(courseObj == null || courseObj.toString().isBlank()){
-     return ResponseEntity.badRequest().body(Map.of("success",false,"message","course_id is required."));
-   }
-   long courseId;
-   try { courseId = Long.parseLong(courseObj.toString().trim()); }
-   catch(Exception e) { return ResponseEntity.badRequest().body(Map.of("success",false,"message","Invalid course_id.")); }
+   return ResponseEntity.status(410).body(Map.of("success",false,"message","Self-enrolment is closed. A trainer or administrator assigns courses, and that assignment enrols you automatically."));
+ }
 
-   long uid = userId(a);
-   java.sql.Date dueDate = java.sql.Date.valueOf(java.time.LocalDate.now().plusDays(30));
-   db.update("INSERT INTO course_assignments(course_id,user_id,assigned_by,due_date,status) VALUES(?,?,?,?, 'enrolled') ON CONFLICT(course_id,user_id) DO NOTHING", courseId, uid, uid, dueDate);
-   db.update("UPDATE courses SET is_published=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=?", courseId);
-   return ResponseEntity.ok(Map.of("success",true,"message","Successfully enrolled in training course."));
+ private List<Long> managedDepartments(long trainerId){
+   return db.queryForList("SELECT department_id FROM trainer_departments WHERE trainer_id=?",Long.class,trainerId);
  }
 }
 

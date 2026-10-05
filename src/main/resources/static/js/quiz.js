@@ -1,6 +1,7 @@
 import { API } from './api.js';
 import { requireAuth } from './auth.js';
 import { UI } from './ui.js';
+import { esc } from './escape.js';
 
 let quizData = null;
 
@@ -55,7 +56,7 @@ async function initQuiz() {
   } catch (err) {
     document.getElementById('questions-container').innerHTML = `
       <div class="card alert alert-danger">
-        Failed to load assessment: ${err.message}
+        Failed to load assessment: ${esc(err.message)}
       </div>
     `;
   }
@@ -81,16 +82,16 @@ function renderQuestions(questions) {
     const hintText = isMsq ? '<span class="badge" style="background:#fef3c7; color:#92400e; margin-left:8px; font-size:0.75rem;">MSQ: Select ALL correct options</span>' : '';
 
     return `
-      <div class="quiz-card question-block" data-question-id="${q.id}" data-qtype="${q.question_type || 'mcq'}">
+      <div class="quiz-card question-block" data-question-id="${q.id}" data-qtype="${esc(q.question_type || 'mcq')}">
         <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
           Question ${idx + 1} of ${questions.length} ${hintText}
         </div>
-        <div class="question-text">${q.question_text}</div>
+        <div class="question-text">${esc(q.question_text)}</div>
         <div class="options-group">
           ${options.map(opt => `
             <label class="option-label" data-qid="${q.id}">
-              <input type="${inputType}" name="question_${q.id}" value="${opt.id}" style="accent-color: var(--primary);">
-              <span><strong>${opt.id}.</strong> ${opt.text}</span>
+              <input type="${inputType}" name="question_${q.id}" value="${esc(opt.id)}" style="accent-color: var(--primary);">
+              <span><strong>${esc(opt.id)}.</strong> ${esc(opt.text)}</span>
             </label>
           `).join('')}
         </div>
@@ -173,12 +174,12 @@ document.getElementById('quiz-form').addEventListener('submit', async (e) => {
       certLinkHtml = `
         <div style="margin-top: 16px; padding: 16px; background: var(--success-bg); border: 1px solid #86efac; border-radius: var(--radius);">
           <div style="font-weight: 700; color: #166534; font-size: 1.05rem;">📜 Official Certificate Awarded!</div>
-          <p style="color: #15803d; font-size: 0.9rem; margin: 4px 0 12px 0;">Certificate Code: <strong>${result.certificate_code}</strong></p>
+          <p style="color: #15803d; font-size: 0.9rem; margin: 4px 0 12px 0;">Certificate Code: <strong>${esc(result.certificate_code)}</strong></p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <a href="/certificate-view.html?code=${result.certificate_code}" target="_blank" class="btn btn-primary btn-sm">
+          <a href="/certificate-view.html?code=${esc(result.certificate_code)}" target="_blank" class="btn btn-primary btn-sm">
             View Certificate 📜
           </a>
-          <button type="button" class="btn btn-secondary btn-sm cert-pdf-btn" data-code="${result.certificate_code}">
+          <button type="button" class="btn btn-secondary btn-sm cert-pdf-btn" data-code="${esc(result.certificate_code)}">
             Download PDF ⬇️
           </button>
           </div>
@@ -213,12 +214,12 @@ document.getElementById('quiz-form').addEventListener('submit', async (e) => {
             evalBox.style.background = 'var(--success-bg)';
             evalBox.style.border = '1px solid #bbf7d0';
             evalBox.style.color = '#15803d';
-            evalBox.innerHTML = `<strong>✓ Correct:</strong> Option ${evalItem.correct_answer}. ${evalItem.explanation || ''}`;
+            evalBox.innerHTML = `<strong>✓ Correct:</strong> Option ${esc(evalItem.correct_answer)}. ${esc(evalItem.explanation || '')}`;
           } else {
             evalBox.style.background = 'var(--danger-bg)';
             evalBox.style.border = '1px solid #fecaca';
             evalBox.style.color = '#991b1b';
-            evalBox.innerHTML = `<strong>✗ Incorrect:</strong> You selected ${evalItem.submitted_answer || 'None'}. Correct answer: <strong>${evalItem.correct_answer}</strong>. ${evalItem.explanation || ''}`;
+            evalBox.innerHTML = `<strong>✗ Incorrect:</strong> You selected ${esc(evalItem.submitted_answer || 'None')}. Correct answer: <strong>${esc(evalItem.correct_answer)}</strong>. ${esc(evalItem.explanation || '')}`;
           }
 
           block.appendChild(evalBox);

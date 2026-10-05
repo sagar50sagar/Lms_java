@@ -1,3 +1,4 @@
+import { esc, scrubHtml } from './escape.js';
 import { API } from './api.js';
 import { requireAuth } from './auth.js';
 import { UI } from './ui.js';
@@ -64,7 +65,7 @@ function renderCurriculumSidebar() {
   currentCourse.chapters.forEach(chapter => {
     html += `
       <div class="chapter-group">
-        <div class="chapter-title">${chapter.title}</div>
+        <div class="chapter-title">${esc(chapter.title)}</div>
         <ul class="lesson-list">
           ${chapter.lessons.map(lesson => {
             const isCompleted = userProgress.completed_lesson_ids.includes(lesson.id);
@@ -77,7 +78,7 @@ function renderCurriculumSidebar() {
                 </div>
                 <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   <span>${lesson.content_type === 'video' ? '🎥' : '📄'}</span>
-                  <span>${lesson.title}</span>
+                  <span>${esc(lesson.title)}</span>
                 </div>
               </li>
             `;
@@ -100,7 +101,7 @@ function renderCurriculumSidebar() {
             ${isPassed ? '✓' : '📝'}
           </div>
           <div style="flex: 1;">
-            <div>${q.title}</div>
+            <div>${esc(q.title)}</div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">${isPassed ? 'Exam Passed' : `Passing: ${q.passing_score}%`}</div>
           </div>
         </a>
@@ -138,15 +139,16 @@ function renderCurrentLesson() {
   const videoIframe = document.getElementById('lesson-video-iframe');
   const bodyContent = document.getElementById('lesson-main-body');
 
-  if (lesson.content_type === 'video' && lesson.video_url) {
+  const videoUrl = /^https:\/\//i.test(lesson.video_url || '') ? lesson.video_url : '';
+  if (lesson.content_type === 'video' && videoUrl) {
     videoBox.style.display = 'block';
-    videoIframe.src = lesson.video_url;
+    videoIframe.src = videoUrl;
   } else {
     videoBox.style.display = 'none';
     videoIframe.src = '';
   }
 
-  bodyContent.innerHTML = lesson.content || '<p style="color: var(--text-muted);">No written text content for this lesson.</p>';
+  bodyContent.innerHTML = scrubHtml(lesson.content) || '<p style="color: var(--text-muted);">No written text content for this lesson.</p>';
 
   // Update Toggle Complete Button
   const toggleBtn = document.getElementById('btn-toggle-complete');
@@ -189,10 +191,10 @@ function updateProgressUI() {
   const certBadge = document.getElementById('player-cert-badge');
   if (userProgress.certificate) {
     certBadge.innerHTML = `
-      <a href="/certificate-view.html?code=${userProgress.certificate.certificate_code}" target="_blank" class="btn btn-secondary btn-sm" style="color: var(--success); font-weight: 700;">
+      <a href="/certificate-view.html?code=${esc(userProgress.certificate.certificate_code)}" target="_blank" class="btn btn-secondary btn-sm" style="color: var(--success); font-weight: 700;">
         📜 Certificate
       </a>
-      <button type="button" class="btn btn-primary btn-sm cert-pdf-btn" data-code="${userProgress.certificate.certificate_code}" style="margin-left:6px">
+      <button type="button" class="btn btn-primary btn-sm cert-pdf-btn" data-code="${esc(userProgress.certificate.certificate_code)}" style="margin-left:6px">
         ⬇️ PDF
       </button>
     `;

@@ -1,0 +1,9 @@
+# Keeps the Railway build context small and, more importantly, keeps .env out of the image:
+# the app loads a .env file if one exists next to the jar.
+.env
+target/
+.git/
+.gitignore
+node_modules/
+*.log
+*.md

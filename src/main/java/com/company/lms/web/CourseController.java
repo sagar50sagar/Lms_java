@@ -201,13 +201,17 @@ public class CourseController extends ApiSupport {
 			return ResponseEntity.status(403).body(notYourCourse());
 		if (!access.chapterBelongsToCourse(chapterId, courseId))
 			return ResponseEntity.status(400).body(Map.of("success", false, "message", "That chapter is not part of this course."));
-		String videoUrl = videoEmbedUrl(b.get("video_url"));
-		if (videoUrl == null)
-			throw bad("Video must be a full https:// link to a YouTube video or a shared Google Drive file.");
+		String contentType = plain(b.get("content_type"), 20);
+		String videoUrl = null;
+		if ("video".equals(contentType)) {
+			videoUrl = videoEmbedUrl(b.get("video_url"));
+			if (videoUrl == null)
+				throw bad("Video must be a full https:// link to a YouTube video or a shared Google Drive file.");
+		}
 		Map<String, Object> r = db.queryForMap(
 				"INSERT INTO lessons(chapter_id,course_id,title,content_type,content,video_url,duration_mins,sequence_order) VALUES(?,?,?,?,?,?,?,?) RETURNING *",
-				chapterId, courseId, plain(b.get("title"), 200), plain(b.get("content_type"), 20),
-				richText(b.get("content"), 20000), videoUrl.isEmpty() ? null : videoUrl,
+				chapterId, courseId, plain(b.get("title"), 200), contentType,
+				richText(b.get("content"), 20000), (videoUrl != null && !videoUrl.isEmpty()) ? videoUrl : null,
 				number(b, "duration_mins", 10), number(b, "sequence_order", 1));
 		return ResponseEntity.status(201).body(ok("lesson", r));
 	}

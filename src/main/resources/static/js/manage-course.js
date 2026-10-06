@@ -339,7 +339,12 @@ function setupEventListeners() {
     const title = document.getElementById('lesson-title-input').value.trim();
     const content_type = document.getElementById('lesson-type-select').value;
     const duration_mins = parseInt(document.getElementById('lesson-duration-input').value, 10) || 10;
-    const video_url = document.getElementById('lesson-video-input').value.trim();
+    let video_url = document.getElementById('lesson-video-input').value.trim();
+    // Strip HTML iframe tags if user pasted embed code — extract the src URL
+    if (video_url.includes('<iframe')) {
+      const srcMatch = video_url.match(/src=["']([^"']+)["']/);
+      video_url = srcMatch ? srcMatch[1] : video_url.replace(/<[^>]*>/g, '').trim();
+    }
     const content = document.getElementById('lesson-content-input').value.trim();
 
     try {

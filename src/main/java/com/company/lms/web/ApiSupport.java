@@ -141,6 +141,11 @@ abstract class ApiSupport {
       return drive.find() ? "https://drive.google.com/file/d/" + drive.group(1) + "/preview" : null;
     }
     if (YOUTUBE_HOSTS.contains(host)) {
+      // If already a valid embed/shorts/live URL, just normalize to nocookie domain
+      if (url.matches(".*youtube(?:-nocookie)?\\.com/(?:embed|shorts|live)/[\\w-]{11}.*")) {
+        return url.replaceFirst("youtube\\.com", "youtube-nocookie.com")
+                  .replaceFirst("m\\.youtube\\.com", "youtube-nocookie.com");
+      }
       var youtube = YOUTUBE_VIDEO_ID.matcher(url);
       // YouTube video ids are exactly 11 characters; a looser match would rewrite playlist and channel URLs too.
       return youtube.find() ? "https://www.youtube-nocookie.com/embed/" + youtube.group(1) : null;

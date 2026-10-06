@@ -139,7 +139,17 @@ function renderCurrentLesson() {
   const videoIframe = document.getElementById('lesson-video-iframe');
   const bodyContent = document.getElementById('lesson-main-body');
 
-  const videoUrl = /^https:\/\//i.test(lesson.video_url || '') ? lesson.video_url : '';
+  let videoUrl = '';
+  if (lesson.content_type === 'video' && lesson.video_url) {
+    const raw = lesson.video_url.trim();
+    // Normalize YouTube watch/share links to embed format
+    const ytWatch = raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (ytWatch) {
+      videoUrl = `https://www.youtube.com/embed/${ytWatch[1]}?rel=0`;
+    } else if (/^https:\/\//i.test(raw)) {
+      videoUrl = raw;
+    }
+  }
   if (lesson.content_type === 'video' && videoUrl) {
     videoBox.style.display = 'block';
     videoIframe.src = videoUrl;

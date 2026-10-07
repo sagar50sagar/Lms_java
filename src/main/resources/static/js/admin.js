@@ -581,14 +581,20 @@ function renderRoster() {
   });
   document.querySelectorAll('.reset-password-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const newPassword = prompt(`Enter new password for ${btn.dataset.name} (minimum 8 characters):`);
-      if (!newPassword || newPassword.length < 8) {
-        API.showToast('Password must be at least 8 characters.', 'error');
-        return;
-      }
-      try { 
-        const result = await API.post(`/admin/users/${btn.dataset.id}/reset-password`, { new_password: newPassword }); 
-        API.showToast(result.message, 'success'); 
+      const newPassword = await UI.prompt({
+        title: 'Reset Password',
+        message: `Set a new password for ${btn.dataset.name}. They will use it the next time they sign in.`,
+        label: 'New password',
+        inputType: 'password',
+        placeholder: 'At least 8 characters',
+        minLength: 8,
+        showGenerate: true,
+        confirmText: 'Reset Password'
+      });
+      if (!newPassword) return;
+      try {
+        const result = await API.post(`/admin/users/${btn.dataset.id}/reset-password`, { new_password: newPassword });
+        API.showToast(result.message, 'success');
       } catch (e) { API.showToast(e.message, 'error'); }
     });
   });

@@ -28,7 +28,21 @@ export const UI = (() => {
       .ui-modal-list li strong{color:var(--text-main);font-weight:600;}
       .ui-modal-actions{display:flex;gap:10px;margin-top:24px;}
       .ui-modal-actions .btn{flex:1;margin:0;}
+      .ui-field{margin-top:18px;text-align:left;}
+      .ui-field-label{display:block;font-size:.82rem;font-weight:600;color:var(--text-main);margin-bottom:6px;}
+      .ui-input-wrap{position:relative;display:flex;align-items:center;}
+      .ui-input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;font-size:1rem;font-family:inherit;background:var(--bg-card);color:var(--text-main);transition:border-color .15s,box-shadow .15s;}
+      .ui-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.15);}
+      .ui-input.has-toggle{padding-right:44px;}
+      .ui-input-btn{position:absolute;right:6px;background:none;border:none;cursor:pointer;font-size:1.05rem;color:var(--text-muted);width:32px;height:32px;display:grid;place-items:center;border-radius:8px;transition:background .15s,color .15s;}
+      .ui-input-btn:hover{background:var(--primary-light);color:var(--primary);}
+      .ui-hint{font-size:.76rem;color:var(--text-muted);margin-top:6px;min-height:1em;}
+      .ui-hint.error{color:var(--danger);}
+      .ui-hint.ok{color:var(--success);}
+      .ui-generate-row{display:flex;gap:8px;margin-top:10px;}
+      .ui-generate-row .btn{flex:1;margin:0;}
       @media (max-width: 640px){
+        .ui-input{font-size:16px;}
         .ui-overlay{align-items:flex-end;padding:0;}
         .ui-modal{max-width:none;border-radius:20px 20px 0 0;border-left:none;border-right:none;border-bottom:none;padding:22px 18px calc(22px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translateY(100%);transition:transform .26s cubic-bezier(.16,1,.3,1);}
         .ui-overlay.open .ui-modal{transform:translateY(0);}
@@ -132,6 +146,147 @@ export const UI = (() => {
     });
   }
 
+  function generatePassword(){
+    const sets=['ABCDEFGHJKLMNPQRSTUVWXYZ','abcdefghijkmnopqrstuvwxyz','23456789','!@#$%^&*()-_=+'];
+    const pick=s=>s[crypto.getRandomValues(new Uint32Array(1))[0]%s.length];
+    const chars=[];
+    sets.forEach(s=>chars.push(pick(s)));
+    const all=sets.join('');
+    while(chars.length<14) chars.push(pick(all));
+    for(let i=chars.length-1;i>0;i--){const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1);[chars[i],chars[j]]=[chars[j],chars[i]];}
+    return chars.join('');
+  }
+
+  function promptModal(opts){
+    ensureStyles();
+    if(overlay) teardown();
+    const { title='Enter a value', message='', label='', placeholder='', inputType='text',
+            minLength=0, confirmText='Confirm', cancelText='Cancel', showGenerate=false, hint='' } = normalize(opts);
+
+    return new Promise((resolve)=>{
+      overlay=document.createElement('div');
+      overlay.className='ui-overlay';
+      overlay.setAttribute('role','dialog');
+      overlay.setAttribute('aria-modal','true');
+
+      const modal=document.createElement('div');
+      modal.className='ui-modal';
+
+      const icon=document.createElement('div');
+      icon.className='ui-modal-icon info';
+      icon.textContent=ICONS.info;
+
+      const h=document.createElement('h3');
+      h.className='ui-modal-title';
+      h.textContent=title;
+
+      const p=document.createElement('p');
+      p.className='ui-modal-message';
+      p.textContent=message;
+
+      const field=document.createElement('div');
+      field.className='ui-field';
+      const lbl=document.createElement('label');
+      lbl.className='ui-field-label';
+      lbl.textContent=label;
+      lbl.htmlFor='ui-prompt-input';
+      const wrap=document.createElement('div');
+      wrap.className='ui-input-wrap';
+      const input=document.createElement('input');
+      input.className='ui-input';
+      input.id='ui-prompt-input';
+      input.type=inputType;
+      input.placeholder=placeholder;
+      input.autocomplete='new-password';
+      wrap.appendChild(input);
+
+      const isPassword=inputType==='password';
+      if(isPassword){
+        input.classList.add('has-toggle');
+        const toggle=document.createElement('button');
+        toggle.type='button';
+        toggle.className='ui-input-btn';
+        toggle.textContent='👁';
+        toggle.title='Show / hide password';
+        toggle.onclick=()=>{ const s=input.type==='password'; input.type=s?'text':'password'; toggle.textContent=s?'🙈':''; };
+        wrap.appendChild(toggle);
+      }
+      field.append(lbl,wrap);
+
+      if(showGenerate){
+        const row=document.createElement('div');
+        row.className='ui-generate-row';
+        const gen=document.createElement('button');
+        gen.type='button';
+        gen.className='btn btn-secondary btn-sm';
+        gen.textContent='🎲 Generate strong';
+        const copy=document.createElement('button');
+        copy.type='button';
+        copy.className='btn btn-secondary btn-sm';
+        copy.textContent='📋 Copy';
+        gen.onclick=()=>{ input.value=generatePassword(); input.type='text'; toggleEye(); validate(); };
+        copy.onclick=async()=>{ if(!input.value) return; try{ await navigator.clipboard.writeText(input.value); copy.textContent='✅ Copied'; setTimeout(()=>copy.textContent='📋 Copy',1500);}catch(e){} };
+        row.append(gen,copy);
+        field.appendChild(row);
+      }
+
+      const hintEl=document.createElement('div');
+      hintEl.className='ui-hint';
+      hintEl.textContent=hint;
+      field.appendChild(hintEl);
+
+      function toggleEye(){
+        const t=wrap.querySelector('.ui-input-btn');
+        if(t) t.textContent=input.type==='password'?'👁':'';
+      }
+
+      const actions=document.createElement('div');
+      actions.className='ui-modal-actions';
+      const cancelBtn=document.createElement('button');
+      cancelBtn.type='button';
+      cancelBtn.className='btn btn-secondary';
+      cancelBtn.textContent=cancelText;
+      const confirmBtn=document.createElement('button');
+      confirmBtn.type='button';
+      confirmBtn.className='btn btn-primary';
+      confirmBtn.textContent=confirmText;
+      actions.append(cancelBtn,confirmBtn);
+
+      modal.append(icon,h,p,field,actions);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      requestAnimationFrame(()=>overlay.classList.add('open'));
+
+      function validate(){
+        const v=input.value;
+        if(minLength && v.length && v.length<minLength){
+          hintEl.className='ui-hint error';
+          hintEl.textContent=`At least ${minLength} characters required.`;
+          confirmBtn.disabled=true;
+          return false;
+        }
+        hintEl.className='ui-hint';
+        hintEl.textContent=hint;
+        confirmBtn.disabled=!v;
+        return true;
+      }
+      confirmBtn.disabled=true;
+      input.addEventListener('input',validate);
+
+      const done=(val)=>{ teardown(); resolve(val); };
+      confirmBtn.onclick=()=>{ if(input.value && validate()) done(input.value); };
+      cancelBtn.onclick=()=>done(null);
+      overlay.addEventListener('click',(e)=>{ if(e.target===overlay) done(null); });
+
+      keyHandler=(e)=>{
+        if(e.key==='Escape') done(null);
+        else if(e.key==='Enter'){ e.preventDefault(); if(input.value && validate()) done(input.value); }
+      };
+      document.addEventListener('keydown',keyHandler);
+      setTimeout(()=>input.focus(),50);
+    });
+  }
+
   const normalize = (o) => (typeof o === 'string' ? { message: o } : (o || {}));
 
   return {
@@ -140,6 +295,9 @@ export const UI = (() => {
     },
     alert(o) {
       return open(Object.assign({ type: 'info', title: 'Notice', confirmText: 'OK', showCancel: false }, normalize(o))).then(() => true);
+    },
+    prompt(o) {
+      return promptModal(o);
     }
   };
 })();

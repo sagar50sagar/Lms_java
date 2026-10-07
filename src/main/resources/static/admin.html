@@ -156,7 +156,11 @@
             <label class="form-label">Email *</label>
             <input type="email" id="new-user-email" class="form-control" required>
           </div>
-          <p style="color:var(--text-muted);font-size:.9rem;">The employee ID and one-time password setup code will be emailed to this address.</p>
+          <div class="form-group">
+            <label class="form-label">Password *</label>
+            <input type="password" id="new-user-password" class="form-control" minlength="8" required>
+            <p style="color:var(--text-muted);font-size:.8rem;margin-top:4px;">Minimum 8 characters.</p>
+          </div>
           <div class="form-group">
             <label class="form-label">Department</label>
             <select id="new-user-dept" class="form-control"><option value="">-- None --</option></select>

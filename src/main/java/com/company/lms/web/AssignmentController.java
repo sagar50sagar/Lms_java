@@ -53,7 +53,7 @@ public class AssignmentController extends ApiSupport {
      if("trainer".equals(role(a)) && !managedDepartments(userId(a)).contains(deptId)){
        return ResponseEntity.status(403).body(Map.of("success",false,"message","You are not assigned to this department."));
      }
-     users = db.queryForList("SELECT u.id FROM user_departments ud JOIN users u ON u.id=ud.user_id WHERE ud.department_id=? AND u.is_active=TRUE AND u.role='employee'", Long.class, deptId);
+     users = db.queryForList("SELECT u.id FROM user_departments ud JOIN users u ON u.id=ud.user_id WHERE ud.department_id=? AND u.is_active=TRUE AND u.role IN ('employee','trainer')", Long.class, deptId);
      grantDepartmentId = deptId;
    }
 
@@ -66,7 +66,7 @@ public class AssignmentController extends ApiSupport {
    }
 
    if (users.isEmpty()) {
-     return ResponseEntity.badRequest().body(Map.of("success",false,"message","No active employees found in the selected department."));
+     return ResponseEntity.badRequest().body(Map.of("success",false,"message","No active members found in the selected department."));
    }
 
    java.sql.Date dueDate = null;
@@ -85,7 +85,7 @@ public class AssignmentController extends ApiSupport {
    }
    db.update("UPDATE courses SET is_published=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=?", courseId);
 
-   return ResponseEntity.ok(Map.of("success",true,"message","Course assigned successfully to "+users.size()+" employee(s).","assigned_count",users.size()));
+   return ResponseEntity.ok(Map.of("success",true,"message","Course assigned successfully to "+users.size()+" user(s).","assigned_count",users.size()));
  }
 
  @PostMapping("/self-enroll")

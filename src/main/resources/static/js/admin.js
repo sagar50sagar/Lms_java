@@ -568,7 +568,7 @@ function renderRoster() {
         <td data-label="Overdue"><span style="color:${parseInt(emp.overdue_courses)>0?'var(--danger)':'var(--text-muted)'};font-weight:600;">${emp.overdue_courses}</span></td>
         <td data-label="Actions" class="cell-actions">
           <div class="actions">
-            ${emp.password_setup_required ? `<button class="btn btn-secondary btn-sm resend-setup-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Resend Setup Link</button>` : `<button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Reset Password</button>`}
+            <button class="btn btn-secondary btn-sm reset-password-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}">Reset Password</button>
             <button class="btn btn-secondary btn-sm toggle-active-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" data-active="${emp.is_active ? '1' : '0'}">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
             <button class="btn btn-secondary btn-sm delete-user-btn" data-id="${emp.id}" data-name="${esc(emp.full_name)}" style="color:var(--danger);">Delete</button>
           </div>
@@ -581,16 +581,15 @@ function renderRoster() {
   });
   document.querySelectorAll('.reset-password-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!(await UI.confirm({ title: 'Send Password Reset?', message: `Email a password reset code to ${btn.dataset.name}?`, type: 'info', confirmText: 'Send Code' }))) return;
-      try { const result = await API.post(`/admin/users/${btn.dataset.id}/reset-password`, {}); API.showToast(result.message, 'success'); }
-      catch (e) { API.showToast(e.message, 'error'); }
-    });
-  });
-  document.querySelectorAll('.resend-setup-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!(await UI.confirm({ title: 'Resend Setup Link?', message: `Email a new account setup link to ${btn.dataset.name}? The prior link will stop working.`, type: 'warning', confirmText: 'Send Link' }))) return;
-      try { const result = await API.post(`/admin/users/${btn.dataset.id}/resend-setup`, {}); API.showToast(result.message, 'success'); }
-      catch (e) { API.showToast(e.message, 'error'); }
+      const newPassword = prompt(`Enter new password for ${btn.dataset.name} (minimum 8 characters):`);
+      if (!newPassword || newPassword.length < 8) {
+        API.showToast('Password must be at least 8 characters.', 'error');
+        return;
+      }
+      try { 
+        const result = await API.post(`/admin/users/${btn.dataset.id}/reset-password`, { new_password: newPassword }); 
+        API.showToast(result.message, 'success'); 
+      } catch (e) { API.showToast(e.message, 'error'); }
     });
   });
   document.querySelectorAll('.toggle-active-btn').forEach(btn => {
@@ -731,6 +730,7 @@ async function handleCreateUser(e) {
   const body = {
     full_name: document.getElementById('new-user-name').value.trim(),
     email: document.getElementById('new-user-email').value.trim(),
+    password: document.getElementById('new-user-password').value,
     department_id: document.getElementById('new-user-dept').value || null,
     designation: document.getElementById('new-user-designation').value.trim() || null,
     employee_id: document.getElementById('new-user-empid').value.trim() || null,

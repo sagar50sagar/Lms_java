@@ -33,8 +33,8 @@ public class DepartmentEnrollmentService {
 		List<Map<String, Object>> me = db.queryForList("SELECT role, is_active FROM users WHERE id=?", userId);
 		if (me.isEmpty())
 			return;
-		// Only employees are compliance targets; a trainer added as a member manages, they do not learn.
-		if (!Boolean.TRUE.equals(me.get(0).get("is_active")) || !"employee".equals(me.get(0).get("role")))
+		String role = String.valueOf(me.get(0).get("role"));
+		if (!Boolean.TRUE.equals(me.get(0).get("is_active")) || "admin".equals(role))
 			return;
 
 		for (Long departmentId : departmentIds) {

@@ -66,7 +66,7 @@ public class CourseController extends ApiSupport {
 		long currentUid = userId(auth);
 		Object createdBy = val(course, "created_by");
 		boolean isCreator = createdBy != null && ((Number) createdBy).longValue() == currentUid;
-		boolean canView = "admin".equals(role(auth)) || isCreator
+		boolean canView = "admin".equals(role(auth)) || isCreator || "trainer".equals(role(auth))
 				|| !db.queryForList("SELECT 1 FROM course_assignments WHERE course_id=? AND user_id=?", id, currentUid).isEmpty();
 		if (!canView)
 			return ResponseEntity.status(403).body(Map.of("success", false, "message", "This course is private. It is visible only to assigned employees and administrators."));

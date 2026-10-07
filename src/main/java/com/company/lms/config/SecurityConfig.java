@@ -35,7 +35,7 @@ public class SecurityConfig {
   @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
   @Bean SecurityFilterChain security(HttpSecurity http, JwtAuthenticationFilter jwt) throws Exception { return http
     .csrf(csrf -> csrf.disable()).cors(cors -> {}).sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-    .authorizeHttpRequests(a -> a.requestMatchers("/api/auth/otp/**", "/api/auth/password/complete", "/api/auth/account-setup", "/api/auth/login", "/api/health", "/api/progress/certificates/verify/**", "/", "/**.html", "/css/**", "/js/**", "/images/**").permitAll().anyRequest().authenticated())
+    .authorizeHttpRequests(a -> a.requestMatchers("/api/auth/login", "/api/health", "/api/progress/certificates/verify/**", "/", "/**.html", "/css/**", "/js/**", "/images/**").permitAll().anyRequest().authenticated())
     .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(CSP))
         .frameOptions(f -> f.deny())
         .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.SAME_ORIGIN)))

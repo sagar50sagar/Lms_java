@@ -105,18 +105,21 @@ public class AdminController extends ApiSupport {
 		if (b.containsKey("department_id") && b.get("department_id") != null && departmentId == null)
 			return ResponseEntity.badRequest()
 					.body(Map.of("success", false, "message", "Department must be a valid numeric ID."));
+		String password = plain(b.get("password"), 128);
+		if (password == null || password.length() < 8)
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "Password must be at least 8 characters."));
 		Map<String, Object> u = db.queryForMap(
-				"INSERT INTO users(employee_id,full_name,email,password_hash,role,department_id,designation,password_setup_required) VALUES(?,?,?,?,?,?,?,TRUE) RETURNING id,employee_id,full_name,email,role,department_id,designation,is_active,password_setup_required",
+				"INSERT INTO users(employee_id,full_name,email,password_hash,role,department_id,designation,password_setup_required) VALUES(?,?,?,?,?,?,?,FALSE) RETURNING id,employee_id,full_name,email,role,department_id,designation,is_active,password_setup_required",
 				employeeId, fullName, email,
-				passwords.encode(java.util.UUID.randomUUID().toString()), role, departmentId, plain(b.get("designation"), 80));
+				passwords.encode(password), role, departmentId, plain(b.get("designation"), 80));
 		long newUserId = ((Number) u.get("id")).longValue();
 		if (departmentId != null) {
 			db.update("INSERT INTO user_departments(user_id,department_id) VALUES(?,?) ON CONFLICT DO NOTHING", newUserId, departmentId);
 			departmentEnrollments.catchUpMember(newUserId, List.of(departmentId.longValue()));
 		}
-		otp.sendAccountSetupLink(newUserId, email, employeeId);
 		return ResponseEntity.status(201).body(Map.of("success", true, "message",
-				"User created. An account setup link is on its way to their email.", "user", u));
+				"User created successfully.", "user", u));
 	}
 
 	@PutMapping("/users/{id}")
@@ -216,7 +219,7 @@ public class AdminController extends ApiSupport {
 	}
 
 	@PostMapping("/users/{id}/reset-password")
-	public ResponseEntity<?> resetPassword(@PathVariable long id) {
+	public ResponseEntity<?> resetPassword(@PathVariable long id, @RequestBody Map<String, Object> b) {
 		List<Map<String, Object>> users = db.queryForList(
 				"SELECT email,employee_id,password_setup_required FROM users WHERE id=? AND role IN ('trainer','employee') AND is_active=TRUE",
 				id);
@@ -224,11 +227,13 @@ public class AdminController extends ApiSupport {
 			return ResponseEntity.status(404)
 					.body(Map.of("success", false, "message", "Active normal user not found."));
 		Map<String, Object> user = users.getFirst();
-		if (Boolean.TRUE.equals(user.get("password_setup_required")))
-			return ResponseEntity.badRequest().body(Map.of("success", false, "message",
-					"This user has not activated their account. Resend the setup link instead."));
-		otp.send((String) user.get("email"), "password_reset", (String) user.get("employee_id"));
-		return ResponseEntity.ok(message("Password reset code is on its way to the user's email."));
+		String newPassword = plain(b.get("new_password"), 128);
+		if (newPassword == null || newPassword.length() < 8)
+			return ResponseEntity.badRequest()
+					.body(Map.of("success", false, "message", "New password must be at least 8 characters."));
+		db.update("UPDATE users SET password_hash=?, password_setup_required=FALSE WHERE id=?", 
+				passwords.encode(newPassword), id);
+		return ResponseEntity.ok(message("Password has been reset successfully."));
 	}
 
 	@PostMapping("/users/{id}/resend-setup")
